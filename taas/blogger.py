@@ -67,7 +67,16 @@ class BloggerClient:
         except ValueError:
             message = None
         base = f"Blogger rejected the request (HTTP {resp.status_code})"
-        return f"{base}: {message}" if message else f"{base}."
+        text = f"{base}: {message}" if message else f"{base}."
+        lowered = (message or "").lower()
+        if resp.status_code == 403 and "scope" in lowered:
+            text += (" Google did not give TAAS permission to use Blogger. In Setup, sign in again "
+                     "and tick the Blogger box on Google's screen.")
+        elif resp.status_code == 403 and "permission" in lowered:
+            text += (" The Google account you are signed in with is not allowed to post to this blog. "
+                     "Sign in with the account that owns this blog or is an author of it "
+                     "(Setup > Use another Google account), then choose the blog again.")
+        return text
 
     # Get the user's blogs
     def list_blogs(self) -> List[Blog]:

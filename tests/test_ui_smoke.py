@@ -159,6 +159,22 @@ class WholeFlowTests(UiBase):
         self.click("Read the pages")  # reads again, so the detection starts fresh
         self.assertEqual(self.screen_name(), "DetailsScreen")
 
+    def test_note_boxes_exist_keep_their_text_and_reach_the_article_prompt(self):
+        s = self.app.screen
+        s.urls[0].insert(0, URLS[0])
+        s.urls[1].insert(0, URLS[1])
+        s.keywords.insert("1.0", ", ".join(KEYWORDS))
+        self.gem.replies += [tw.DETECT, tw.DETECT]
+        self.click("Read the pages")
+        d = self.app.screen
+        self.assertEqual(len(d.notes), 2)
+        d.notes[0].insert(0, "Costume offers page")
+        self.click("Back")
+        self.assertEqual(self.app.analysis.analyses[0].detection.note, "Costume offers page")
+        self.gem.replies += [tw.DETECT, tw.DETECT]
+        self.click("Read the pages")  # reading again starts fresh
+        self.assertEqual(self.app.screen.notes[0].get(), "")
+
     def test_back_from_the_article_keeps_the_edited_text(self):
         self.to_article()
         a = self.app.screen

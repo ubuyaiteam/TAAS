@@ -24,10 +24,10 @@ DRAFT_CHOICE, LIVE_CHOICE = "Save as Blogger draft", "Publish live"
 class App(ctk.CTk):
     """The window. It keeps the current data and switches screens."""
 
-    def __init__(self, workflow=None):
+    def __init__(self, workflow=None, auto_check=False):
         super().__init__()
         self.workflow = workflow or Workflow()
-        self.title(APP_TITLE)
+        self.title(f"{APP_TITLE}  (v{self.workflow.version})")
         self.geometry("980x780")
         self.minsize(860, 640)
 
@@ -39,11 +39,22 @@ class App(ctk.CTk):
         self.busy = False
 
         # top bar: screen name and Setup button
-        top = ctk.CTkFrame(self)
+        top = self.top_bar = ctk.CTkFrame(self)
         top.pack(fill="x", padx=12, pady=(12, 0))
         self.step_label = ctk.CTkLabel(top, text="", font=ctk.CTkFont(size=16, weight="bold"))
         self.step_label.pack(side="left", padx=10, pady=8)
         ctk.CTkButton(top, text="Setup", width=90, command=self.open_setup).pack(side="right", padx=10, pady=8)
+        ctk.CTkButton(top, text="Check for updates", width=140, command=self.on_check_updates).pack(side="right", pady=8)
+        ctk.CTkLabel(top, text=f"v{self.workflow.version}").pack(side="right", padx=10, pady=8)
+
+        # a notice that appears only when a newer version was released
+        self.update_bar = ctk.CTkFrame(self)
+        self.update_label = ctk.CTkLabel(self.update_bar, text="", anchor="w")
+        self.update_label.pack(side="left", padx=10, pady=6)
+        self.update_info = None
+        self.update_button = ctk.CTkButton(self.update_bar, text="Open download page", width=160,
+                                           command=self.on_open_download)
+        self.update_button.pack(side="right", padx=10, pady=6)
 
         # one line that says "Working..." while a job runs
         self.status = ctk.CTkLabel(self, text="", anchor="w")
@@ -54,6 +65,10 @@ class App(ctk.CTk):
         self.body.pack(fill="both", expand=True, padx=12, pady=12)
         self.screen = None
         self.show(SetupScreen if self.workflow.missing_setup() else InputScreen)
+
+        # look for a new version quietly when the app starts (only when it is set up)
+        if auto_check and self.workflow.update_check_ready():
+            self.run_task(self.workflow.check_for_update, self.after_quiet_check, "", background=True)
 
     # Show a screen (the old one is removed)
     def show(self, screen_class):
@@ -75,10 +90,12 @@ class App(ctk.CTk):
 
     # Run a slow job in the background, then call on_done(kind, value)
     # kind is "ok" (value = the job's result) or "error" (value = text to show)
-    def run_task(self, work, on_done, message):
-        if self.busy:
+    # background=True: a quiet job that does not block the buttons or show "Working..."
+    def run_task(self, work, on_done, message, background=False):
+        if self.busy and not background:
             return
-        self.set_busy(message)
+        if not background:
+            self.set_busy(message)
         results = queue.Queue()
 
         def job():
@@ -98,10 +115,48 @@ class App(ctk.CTk):
             except queue.Empty:
                 self.after(POLL_MS, poll)
                 return
-            self.set_busy("")
+            if not background:
+                self.set_busy("")
             on_done(kind, value)
 
         self.after(POLL_MS, poll)
+
+    # The user pressed "Check for updates"
+    def on_check_updates(self):
+        self.run_task(self.workflow.check_for_update, self.after_manual_check, "Looking for a new version...")
+
+    def after_manual_check(self, kind, value):
+        if kind == "error":
+            self.show_info("Check for updates", value)
+            return
+        self.apply_update_info(value)
+        text = value.message()
+        if value.newer and value.notes:
+            text += "\n\nWhat is new:\n" + value.notes
+        self.show_info("Check for updates", text)
+
+    # The quiet check at start-up: speak up only when there is news
+    def after_quiet_check(self, kind, value):
+        if kind == "ok":
+            self.apply_update_info(value)
+
+    # Show or hide the "new version" notice
+    def apply_update_info(self, info):
+        self.update_info = info
+        if info.newer:
+            self.update_label.configure(text=f"New version {info.latest} is available (you have {info.current}).")
+            self.update_bar.pack(fill="x", padx=12, pady=(6, 0), after=self.top_bar)
+        else:
+            self.update_bar.pack_forget()
+
+    def on_open_download(self):
+        if self.update_info:
+            self.workflow.open_download_page(self.update_info)
+
+    # Tell the user something in a pop-up
+    def show_info(self, title, message):
+        from tkinter import messagebox  # imported here so the file loads without a display
+        messagebox.showinfo(title, message)
 
     # Ask a yes/no question in a pop-up
     def ask_yes_no(self, title, message):
@@ -343,7 +398,7 @@ class DetailsScreen(Screen):
         analysis = self.app.analysis
         self.heading("Step 2: Check what was found")
         self.text("Correct anything that is wrong. Brand names are only used to keep them out of the article.")
-        self.brands = []
+        self.brands, self.notes = [], []
         for item in analysis.analyses:
             self.text(item.url)
             d = item.detection
@@ -352,6 +407,7 @@ class DetailsScreen(Screen):
             else:
                 self.text("Page read." + (" It had very little text, so check the values." if d.thin else ""), GREEN)
             self.brands.append(self.field("Brand name on this page", d.brand, width=420))
+            self.notes.append(self.field("About this page (optional: helps when the page cannot be read)", d.note, width=720))
         self.section("For the whole article")
         self.category = self.field("Category", analysis.category, width=420)
         self.country = self.field("Country", analysis.country, width=420)
@@ -364,8 +420,9 @@ class DetailsScreen(Screen):
     # Keep what the user typed, so coming back to this screen shows it again
     def keep_edits(self):
         analysis = self.app.analysis
-        for item, entry in zip(analysis.analyses, self.brands):
+        for item, entry, note in zip(analysis.analyses, self.brands, self.notes):
             item.detection.brand = entry.get().strip()
+            item.detection.note = note.get().strip()
         analysis.category = self.category.get().strip()
         analysis.country = self.country.get().strip()
 
@@ -404,6 +461,25 @@ class ArticleScreen(Screen):
         self.body.pack(anchor="w", padx=10, pady=2)
         self.text("Square brackets [like this] mark a link. Start a line with ## for a subheading "
                   "and with - for a list item. Leave an empty line between paragraphs.")
+
+        # --- pictures ---
+        self.section("Images")
+        self.text("Blogger cannot take files from this app, so a picture must already be on the internet. "
+                  "Paste its web address and a short description. Click in the article where it should go, "
+                  "then press Add image. It is placed after the paragraph you clicked in. "
+                  "A picture shows in the text as a line like {image: https://... | description}; "
+                  "delete that line to remove the picture.")
+        self.image_url = self.field("Image web address", width=640, placeholder="https://")
+        self.image_alt = self.field("Image description (what the picture shows)", width=640)
+        row = ctk.CTkFrame(self.page, fg_color="transparent")
+        row.pack(anchor="w", padx=10, pady=6)
+        ctk.CTkButton(row, text="Add image", width=130, command=self.on_add_image).pack(side="left", padx=(0, 8))
+        # not ready yet: shown so the team can see what is coming, but it cannot be clicked
+        self.generate_images_button = ctk.CTkButton(row, text="Generate images automatically (coming soon)",
+                                                    width=300, state="disabled")
+        self.generate_images_button.pack(side="left")
+        self.image_note = ctk.CTkLabel(self.page, text="", anchor="w", justify="left", wraplength=WRAP)
+        self.image_note.pack(fill="x", padx=10, pady=2)
 
         # --- which keyword is the link text for each address ---
         self.section("Links")
@@ -461,6 +537,19 @@ class ArticleScreen(Screen):
 
     def current(self):
         return self.title_entry.get().strip(), self.body.get("1.0", "end").strip()
+
+    # Put a picture line into the article text, after the paragraph the cursor is in
+    def on_add_image(self):
+        try:
+            line = self.workflow.image_line(self.image_url.get(), self.image_alt.get())
+        except TaasError as error:
+            self.image_note.configure(text=str(error), text_color=RED)
+            return
+        self.body.insert("insert lineend", "\n\n" + line + "\n\n")
+        self.image_url.delete(0, "end")
+        self.image_alt.delete(0, "end")
+        self.image_note.configure(text="Image added to the article text.", text_color=GREEN)
+        self.on_check()
 
     # Go back to the details (the article text on screen is kept in the draft)
     def on_back(self):
@@ -568,4 +657,4 @@ class ResultScreen(Screen):
 def run():
     ctk.set_appearance_mode("system")  # follow the Windows light or dark mode
     ctk.set_default_color_theme("blue")
-    App().mainloop()
+    App(auto_check=True).mainloop()

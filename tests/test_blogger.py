@@ -107,6 +107,27 @@ class ErrorTests(unittest.TestCase):
         self.assertIn("Quota exceeded", str(ctx.exception))
         self.assertIn("403", str(ctx.exception))
 
+    def test_403_permission_error_explains_the_likely_cause(self):
+        c, _ = client(FakeResponse(403, {"error": {"message": "The caller does not have permission"}}))
+        with self.assertRaises(BloggerError) as ctx:
+            c.create_post("1", "T", "<p>x</p>")
+        text = str(ctx.exception)
+        self.assertIn("The caller does not have permission", text)  # Blogger's own words stay
+        self.assertIn("owns this blog or is an author", text)
+        self.assertIn("Use another Google account", text)
+
+    def test_403_scope_error_asks_to_tick_the_blogger_box(self):
+        c, _ = client(FakeResponse(403, {"error": {"message": "Request had insufficient authentication scopes."}}))
+        with self.assertRaises(BloggerError) as ctx:
+            c.list_blogs()
+        self.assertIn("tick the Blogger box", str(ctx.exception))
+
+    def test_quota_403_gets_no_misleading_hint(self):
+        c, _ = client(FakeResponse(403, {"error": {"message": "Quota exceeded"}}))
+        with self.assertRaises(BloggerError) as ctx:
+            c.list_blogs()
+        self.assertNotIn("Sign in", str(ctx.exception))
+
     def test_error_without_json_body(self):
         c, _ = client(FakeResponse(500, bad_json=True))
         with self.assertRaises(BloggerError):

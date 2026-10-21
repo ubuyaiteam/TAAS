@@ -6,22 +6,23 @@ Order of use: save settings -> sign in -> pick blog -> analyze -> generate -> (e
 import dataclasses  # copy a settings object with changes
 import re  # split text
 import time  # clock
+from urllib.parse import urlparse  # read web addresses
 import webbrowser  # open the browser
 from dataclasses import dataclass, field  # simple data classes
 from typing import List  # type hints
 
-from . import config  # settings
+from . import __version__, config, updates  # settings, app version, update check
 from .anchors import choose_anchors  # pick link keywords
 from .article import ArticleRequest, Link, generate_article  # write the article
 from .auth import GoogleAuth, TokenStore, load_client_config, sign_in  # Google sign-in
 from .blogger import BloggerClient  # Blogger
 from .checks import CheckReport, run_checks  # automatic checks
 from .detect import analyze_urls, summarize  # find brand, category, country
-from .editor import html_to_text, swap_anchor, text_to_html  # editable text
+from .editor import html_to_text, make_image_line, swap_anchor, text_to_html  # editable text
 from .errors import ConfigError, ValidationError  # our error types
 from .gemini import GeminiClient  # Gemini
 from .inputs import validate_keywords, validate_urls  # input checks
-from .pagereader import read_page  # read web pages
+from .pagereader import PageInfo, read_page  # read web pages
 from .safeguards import PostLog  # posting limit and repeat warning
 from .terms import forbidden_terms  # brand and domain names to block
 
@@ -81,7 +82,8 @@ class Workflow:
     """All actions the screens can ask for."""
 
     def __init__(self, gemini_factory=None, blogger_factory=None, reader=read_page,
-                 sign_in_fn=sign_in, now=time.time, rng=None, open_browser=webbrowser.open):
+                 sign_in_fn=sign_in, now=time.time, rng=None, open_browser=webbrowser.open,
+                 update_check=updates.check_for_update):
         # the "factory" and "fn" arguments let tests replace the real services
         self.settings = config.load_settings()
         self.store = TokenStore(config.token_path())
@@ -93,6 +95,7 @@ class Workflow:
         self.now = now
         self.rng = rng
         self.open_browser = open_browser
+        self._update_check = update_check
 
     # ---------------------------------------------------------- settings
 
@@ -128,6 +131,26 @@ class Workflow:
         if not self.settings.blog_id:
             missing.append("Choose your Blogger blog.")
         return missing
+
+    # ----------------------------------------------------------- updates
+
+    # The version of the running app
+    @property
+    def version(self):
+        return __version__
+
+    # Can we look for updates (is a GitHub repository known)?
+    def update_check_ready(self):
+        return bool(updates.pick_repo(self.settings.update_repo))
+
+    # Ask GitHub whether a newer version was released; returns an UpdateInfo
+    def check_for_update(self):
+        repo = updates.pick_repo(self.settings.update_repo)
+        return self._update_check(__version__, repo, token=self.settings.update_token)
+
+    # Open the download page of a release
+    def open_download_page(self, info):
+        self.open_browser(info.url)
 
     # ------------------------------------------------------------ Google
 
@@ -190,7 +213,7 @@ class Workflow:
         if not country:
             raise ValidationError("Type the country.")
         gemini = self._gemini()
-        pages = [a.page for a in analysis.analyses]
+        pages = [self._page_with_note(a) for a in analysis.analyses]
         anchors = choose_anchors(analysis.keywords, analysis.urls, pages, gemini)
         draft = Draft(
             title="", text="",
@@ -198,11 +221,21 @@ class Workflow:
             keywords=list(analysis.keywords), urls=list(analysis.urls),
             category=category, country=country,
             forbidden=forbidden_terms([b for b in brands if b and b.strip()], analysis.urls),
-            page_notes=[f"{p.title}. {p.description}"[:300] if p else "" for p in pages],
+            page_notes=[" ".join(x for x in (p.title, p.description) if x)[:300] if p else "" for p in pages],
             min_words=self.settings.min_words, max_words=self.settings.max_words,
             report=CheckReport(),
         )
         return self._write(draft, gemini)
+
+    # The page, with the user's own note used as its description (the note wins over the page)
+    @staticmethod
+    def _page_with_note(item):
+        note = (item.detection.note or "").strip()
+        if not note:
+            return item.page
+        if item.page is None:  # the page could not be read: build a small page from the note
+            return PageInfo(url=item.url, host=urlparse(item.url).netloc.lower(), description=note)
+        return dataclasses.replace(item.page, description=note)
 
     # Write again with the same links
     def regenerate(self, draft):
@@ -246,6 +279,11 @@ class Workflow:
         draft.links[index].anchor = keyword
         draft.text = new_text
         return new_text
+
+    # The text line for a picture (the Article screen puts it into the text)
+    @staticmethod
+    def image_line(url, alt=""):
+        return make_image_line(url, alt)
 
     # Things the user should know before posting
     def warnings_before_post(self, draft, title, text):

@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup  # read HTML
 
 from .errors import PageReadError  # our error types
 
-USER_AGENT = "Mozilla/5.0 (compatible; TAAS/0.1)"  # how we introduce ourselves to websites
+USER_AGENT = "Mozilla/5.0 (compatible; TAAS-reader/1.0)"  # how we introduce ourselves to websites
 FETCH_TIMEOUT = 20  # seconds to wait for a page
 MAX_PAGE_CHARS = 2_000_000  # ignore anything after this much HTML
 MAX_TEXT_CHARS = 4000  # how much page text we keep
@@ -51,7 +51,10 @@ def fetch_page(url, http=requests):
 
     status = resp.status_code
     if status in (401, 403, 429):
-        raise PageReadError(f"{url} does not allow automatic reading (HTTP {status}).")
+        raise PageReadError(
+            f"{url} does not allow automatic reading (HTTP {status}). "
+            "If this is your own site, ask your web team to allow the reader named TAAS-reader."
+        )
     if status in (404, 410):
         raise PageReadError(f"{url} was not found (HTTP {status}).")
     if status >= 400:

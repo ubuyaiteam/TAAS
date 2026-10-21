@@ -23,6 +23,9 @@ class Widget:
     def pack(self, *a, **k):  # the real pack returns None
         return None
 
+    def pack_forget(self):
+        return None
+
     def grid(self, *a, **k):
         return None
 

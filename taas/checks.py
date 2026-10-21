@@ -81,6 +81,12 @@ def run_checks(html_text, title, keywords, links, forbidden, min_words, max_word
         if find_term(text, term) or find_term(title or "", term):
             problems.append(f"The name '{term}' must not appear in the article.")
 
+    # 6b. picture descriptions are read by search engines, so brand names must stay out of them too
+    for image in soup.find_all("img"):
+        for term in forbidden:
+            if find_term(image.get("alt") or "", term):
+                problems.append(f"The name '{term}' must not appear in a picture description.")
+
     # 7. repeated phrases (4-word groups)
     tokens = re.findall(r"[a-z0-9']+", text.lower())
     keyword_texts = [" ".join(k.lower().split()) for k in keywords]

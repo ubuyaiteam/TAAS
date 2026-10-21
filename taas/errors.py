@@ -31,3 +31,7 @@ class PageReadError(TaasError):
 
 class GeminiError(TaasError):
     """Gemini failed or gave a bad answer."""
+
+
+class UpdateError(TaasError):
+    """The check for a new version failed."""

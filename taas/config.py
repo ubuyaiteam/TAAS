@@ -23,6 +23,8 @@ KEY_MIN_WORDS = "MIN_WORDS"
 KEY_MAX_WORDS = "MAX_WORDS"
 KEY_POST_LIMIT = "POST_LIMIT_PER_DAY"
 KEY_CLIENT_SECRET = "GOOGLE_CLIENT_SECRET_FILE"
+KEY_UPDATE_REPO = "UPDATE_REPO"  # GitHub repository to look for new versions, like owner/name
+KEY_UPDATE_TOKEN = "UPDATE_TOKEN"  # only needed when the repository is private
 
 
 def app_dir() -> Path:
@@ -68,6 +70,8 @@ class Settings:
     max_words: int = DEFAULT_MAX_WORDS  # longest article
     post_limit_per_day: Optional[int] = None  # optional daily limit
     client_secret_file: str = ""  # path to the Google client file
+    update_repo: str = ""  # GitHub repository for the update check (empty = the built-in one)
+    update_token: str = ""  # read-only GitHub token for a private repository (usually empty)
 
     def client_secret_path(self) -> Path:
         if self.client_secret_file:  # 1. a path set in the .env file
@@ -105,6 +109,8 @@ def load_settings(path: Optional[Path] = None) -> Settings:
         max_words=_int(values, KEY_MAX_WORDS, DEFAULT_MAX_WORDS),
         post_limit_per_day=_int(values, KEY_POST_LIMIT, None),
         client_secret_file=(values.get(KEY_CLIENT_SECRET) or "").strip(),
+        update_repo=(values.get(KEY_UPDATE_REPO) or "").strip(),
+        update_token=(values.get(KEY_UPDATE_TOKEN) or "").strip(),
     )
     validate_settings(settings)
     return settings

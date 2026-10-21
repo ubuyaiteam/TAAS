@@ -6,7 +6,7 @@ import unittest  # test tools
 from pathlib import Path  # file paths
 
 ROOT = Path(__file__).resolve().parent.parent  # the project folder
-LOCAL = {"taas", "tests", "phase1_check", "phase23_check", "run_taas"}  # our own modules
+LOCAL = {"taas", "tests", "phase1_check", "phase23_check", "run_taas", "release"}  # our own modules
 PACKAGE_OF = {"bs4": "beautifulsoup4", "dotenv": "python-dotenv"}  # import name -> package name
 
 

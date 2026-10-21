@@ -19,6 +19,7 @@ class Detection:
     category: str = ""  # product or service type
     country: str = ""  # country the business is in or serves
     error: str = ""  # why detection failed (empty = fine)
+    note: str = ""  # what the page is about, typed by the user (used when the page cannot be read)
     thin: bool = False  # True when the page had very little text
 
 

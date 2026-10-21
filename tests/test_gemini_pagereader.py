@@ -157,6 +157,13 @@ class PageReaderTests(unittest.TestCase):
         self.assertEqual(pagereader.fetch_page("https://a.com", web), "<html>ok</html>")
         self.assertIn("User-Agent", web.calls[0][1]["headers"])
 
+    def test_blocked_page_message_tells_the_site_owner_what_to_allow(self):
+        with self.assertRaises(PageReadError) as ctx:
+            pagereader.fetch_page("https://a.com", FakeWeb(Resp(403)))
+        self.assertIn("HTTP 403", str(ctx.exception))
+        self.assertIn("TAAS-reader", str(ctx.exception))
+        self.assertIn("TAAS-reader", pagereader.USER_AGENT)  # the name the site owner can allow
+
     def test_fetch_problems(self):
         cases = [Resp(403), Resp(404), Resp(500), Resp(200, headers={"Content-Type": "application/pdf"}),
                  requests.exceptions.SSLError("x"), requests.ConnectionError("x"), requests.Timeout("x")]

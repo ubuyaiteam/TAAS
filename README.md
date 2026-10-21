@@ -1,9 +1,9 @@
-# TAAS - Tool for Automatic Article Submission (version 1.0.0-rc1)
+# TAAS - Tool for Automatic Article Submission (version 1.1.0)
 
 A Windows app. You enter 2-3 web addresses and 5-10 keywords. TAAS reads the pages, writes one helpful
 article with Google Gemini, lets you edit it, and posts it to your Blogger blog.
 
-Status: all code is written and passes 194 offline tests. The live checks (Google, Gemini, Blogger) and the
+Status: all code is written and passes 257 offline tests. The live checks (Google, Gemini, Blogger) and the
 .exe build still have to be done on a Windows PC. See TEST_CHECKLIST.md.
 
 ## Start from source (Windows)
@@ -32,17 +32,21 @@ Neither option has been run yet; the build environment used to write the code is
 | Switch Google account | `python phase1_check.py --switch-account` |
 | Live check: pages, detection, article | `python phase23_check.py --url URL1 --url URL2 --keywords "k1, k2, k3, k4, k5"` |
 | Same, also save a Blogger draft | add `--post-draft` |
+| Make a release (bump version, test, commit, tag) | `python release.py 1.2.0` (add `--push` to upload). See RELEASING.md |
 | Sign out by hand (Command Prompt) | `del %APPDATA%\TAAS\token.json` |
 | Open the settings folder | `explorer %APPDATA%\TAAS` |
 
 ## Files
 | File | Purpose |
 | --- | --- |
+| RELEASING.md | How to publish a new version and how the in-app update notice works |
+| CHANGELOG.md | What changed in each version |
+| release.py | Makes a release: bumps the version, runs the tests, commits and tags |
 | GOOGLE_SETUP.md | One-time Google Cloud setup (admin) |
 | USER_GUIDE.md | Guide for the SEO team |
 | TEST_CHECKLIST.md | Live test steps and sign-off |
 | taas/ | The code: config, auth, blogger, gemini, pagereader, detect, anchors, article, checks, editor, safeguards, workflow, ui/ |
-| tests/ | 194 offline tests (screen tests use a stand-in toolkit, see tests/stub_ctk.py) |
+| tests/ | 257 offline tests (screen tests use a stand-in toolkit, see tests/stub_ctk.py) |
 
 ## Settings (.env in %APPDATA%\TAAS)
     GEMINI_API_KEY=your key
@@ -50,6 +54,8 @@ Neither option has been run yet; the build environment used to write the code is
     MIN_WORDS=300
     MAX_WORDS=400
     POST_LIMIT_PER_DAY=                   (empty = no limit)
+    UPDATE_REPO=owner/name                (optional: overrides the repository in taas/updates.py)
+    UPDATE_TOKEN=                         (optional: read-only token, only if the repository is private)
 The Google client file `client_secret.json` is looked for in this order: the path in GOOGLE_CLIENT_SECRET_FILE,
 the TAAS settings folder, then next to the app.
 

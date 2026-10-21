@@ -4,6 +4,7 @@ In the editable text:
   ## Heading      = a subheading
   - item          = a list item
   [keyword]       = a link (square brackets mark the link text)
+  {image: https://address | description}  = a picture (its own line)
   blank line      = new paragraph
 """
 
@@ -14,6 +15,10 @@ from bs4 import BeautifulSoup  # read HTML
 
 from .article import assemble  # turns link markers into real links
 from .errors import ValidationError  # our error types
+from .inputs import normalize_url  # check a web address
+
+IMAGE_LINE = re.compile(r"^\{image:\s*(.*?)\s*\}$", re.DOTALL)  # one picture line
+IMAGE_LINE_ANYWHERE = re.compile(r"(?m)^[ \t]*(\{image:[^\n]*\})[ \t]*$")  # picture lines inside a longer text
 
 
 # Text inside one tag; a link <a> becomes [text]
@@ -40,6 +45,8 @@ def html_to_text(html_text):
             continue
         if name == "h2":
             blocks.append("## " + _inline(el))
+        elif el.find("img") and not el.get_text(strip=True):  # a block that holds only pictures
+            blocks.extend(f"{{image: {i.get('src', '')} | {i.get('alt', '')}}}" for i in el.find_all("img"))
         elif name in ("ul", "ol"):
             blocks.append("\n".join("- " + _inline(li) for li in el.find_all("li")))
         else:
@@ -67,10 +74,19 @@ def text_to_html(text, links):
 
         return re.sub(r"\[([^\[\]]+)\]", replace, safe)
 
-    parts = []
-    for block in [b.strip() for b in re.split(r"\n\s*\n", text.strip()) if b.strip()]:
+    parts, pictures = [], 0
+    text = IMAGE_LINE_ANYWHERE.sub(r"\n\n\1\n\n", text.strip())  # a picture line is always its own block
+    for block in [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]:
         lines = [l.strip() for l in block.split("\n") if l.strip()]
-        if block.startswith("## "):
+        picture = IMAGE_LINE.match(block)
+        if picture:
+            pictures += 1
+            tag, note = _image_html(picture, pictures)
+            if note:
+                notes.append(note)
+            if tag:
+                parts.append(tag)
+        elif block.startswith("## "):
             parts.append("<h2>" + inline(" ".join(lines)[3:].strip()) + "</h2>")
         elif all(l.startswith("- ") for l in lines):
             parts.append("<ul>" + "".join(f"<li>{inline(l[2:].strip())}</li>" for l in lines) + "</ul>")
@@ -100,3 +116,30 @@ def swap_anchor(text, old, new):
     raise ValidationError(
         f"The keyword '{new}' is not in the text, so it cannot become a link. Add it to the text first."
     )
+
+
+# The one line that stands for a picture; raises ValidationError when the address is not usable
+def make_image_line(url, alt=""):
+    address = normalize_url(url)  # must be http or https
+    if any(c in address for c in "{}|"):
+        raise ValidationError("The image address cannot contain the characters { } or |.")
+    description = re.sub(r"[{}|\r\n]+", " ", alt or "")
+    description = re.sub(r"\s+", " ", description).strip()
+    return f"{{image: {address} | {description}}}"
+
+
+# One picture line -> (HTML, note); the HTML is empty when the line is not usable
+def _image_html(match, number):
+    inner = match.group(1)
+    address, _, alt = inner.partition("|")
+    address, alt = address.strip(), alt.strip()
+    try:
+        address = normalize_url(address)
+    except ValidationError:
+        return "", f"Picture {number} was left out: its web address must start with https://."
+    tag = (
+        f'<p style="text-align: center;"><img src="{html.escape(address, quote=True)}" '
+        f'alt="{html.escape(alt, quote=True)}" style="max-width: 100%; height: auto;" /></p>'
+    )
+    note = "" if alt else f"Picture {number} has no description. A short description helps readers and search engines."
+    return tag, note

@@ -282,6 +282,13 @@ def sign_in(
         http=http,
     )
     token = _with_expiry(body, None, now())
+    # Google lets the user untick permissions; without Blogger in the list, posting would fail later
+    granted = body.get("scope")
+    if granted and BLOGGER_SCOPE not in granted.split():
+        raise AuthRequiredError(
+            "Google did not give TAAS permission to use Blogger. Sign in again and tick the Blogger "
+            "box when Google asks."
+        )
     # no refresh token means signing in again and again
     if not token["refresh_token"]:
         raise AuthRequiredError(

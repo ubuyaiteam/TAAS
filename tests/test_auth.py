@@ -184,6 +184,19 @@ class SignInTests(unittest.TestCase):
                 auth.sign_in(CLIENT, store, open_browser=lambda u: None,
                              timeout=1, http=FakeHttp())
 
+    def test_unticked_blogger_permission_is_refused_and_nothing_is_saved(self):
+        body = dict(good_token_body(), scope="openid email")  # Google granted something else
+        http = FakeHttp(FakeResponse(200, body))
+        with self.assertRaises(AuthRequiredError) as ctx:
+            self.run_sign_in(lambda st: f"code=abc&state={st}", http)
+        self.assertIn("tick the Blogger box", str(ctx.exception))
+
+    def test_blogger_permission_present_is_accepted(self):
+        body = dict(good_token_body(), scope=f"openid {auth.BLOGGER_SCOPE}")
+        http = FakeHttp(FakeResponse(200, body))
+        token, stored = self.run_sign_in(lambda st: f"code=abc&state={st}", http)
+        self.assertIn(auth.BLOGGER_SCOPE, stored["scope"])
+
     def test_missing_refresh_token_is_an_error(self):
         http = FakeHttp(FakeResponse(200, good_token_body(refresh=None)))
         with self.assertRaises(AuthRequiredError):

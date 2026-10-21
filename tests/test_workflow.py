@@ -178,6 +178,26 @@ class WriteTests(WorkflowBase):
         self.assertEqual((draft.min_words, draft.max_words), (100, 200))
         self.assertFalse(draft.report.passed)  # the sample article is too long for 100-200 words
 
+    def test_note_typed_by_the_user_is_used_when_a_page_cannot_be_read(self):
+        self.ready()
+        from taas.errors import PageReadError  # our error types
+
+        def reader(url, http):
+            if url == URLS[0]:
+                raise PageReadError("blocked (HTTP 403)")
+            return fake_reader(url, http)
+
+        self.wf.reader = reader
+        self.gem.replies += [DETECT, ANCHORS, reply(), reply()]  # only the readable page is sent to Gemini
+        analysis = self.wf.analyze(list(URLS), "\n".join(KEYWORDS))
+        self.assertIn("blocked", analysis.analyses[0].detection.error)
+        analysis.analyses[0].detection.note = "Seasonal costume offers for couples"
+        draft = self.wf.generate(analysis, "costumes", "Australia", ["Acme"])
+        anchors_prompt, article_prompt = self.gem.calls[-3]["prompt"], self.gem.calls[-2]["prompt"]
+        self.assertIn("Seasonal costume offers for couples", anchors_prompt)
+        self.assertIn("Seasonal costume offers for couples", article_prompt)
+        self.assertTrue(draft.page_notes[0].startswith("Seasonal costume"))
+
     def test_regenerate_keeps_links_and_replaces_the_article(self):
         self.ready()
         draft = self.make_draft()
