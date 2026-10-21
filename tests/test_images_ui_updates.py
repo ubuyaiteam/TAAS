@@ -1,7 +1,8 @@
 """Tests for pictures in articles, and for the version label and update notice on screen."""
 
 import unittest  # test tools
-
+from unittest import mock  # replace a value during one test
+from taas import updates  # the update settings
 from tests.test_ui_smoke import UiBase, find, labels, pump, ui  # the screen test setup (also loads the stand-in toolkit)
 from tests.helpers import sample_links  # sample links
 from taas.article import Link  # one link
@@ -186,8 +187,10 @@ class UpdateScreenTests(UiBase):
 
     def test_start_up_check_is_skipped_when_no_repository_is_known(self):
         self.wf.settings.update_repo = ""
-        self.new_app(True)
-        pump(self.app)
+        # the real repository name is set now, so pretend it is not for this test
+        with mock.patch.object(updates, "DEFAULT_REPO", ""):
+            self.new_app(True)
+            pump(self.app)
         self.assertEqual(self.infos, [])
 
     def test_button_reports_a_new_version(self):
