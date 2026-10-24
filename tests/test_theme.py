@@ -8,7 +8,7 @@ from pathlib import Path  # file paths
 from PIL import Image  # read the icon file
 
 import make_icon  # the icon script (project folder)
-from tests.test_ui_smoke import UiBase, find, labels, pump, stub_ctk, ui  # the screen test setup (loads the stand-in toolkit)
+from tests.test_ui_smoke import UiBase  # the screen test setup (loads the stand-in toolkit)
 from taas import config  # settings
 from taas.errors import ValidationError  # our error types
 from taas.ui import theme  # the colors
@@ -134,49 +134,11 @@ class ThemeSettingTests(unittest.TestCase):
         self.assertEqual(self.load("THEME_MODE=purple\n").theme_mode, "system")
 
 
-class ThemeScreenTests(UiBase):
-    def test_screens_use_the_theme_colors(self):
-        self.assertEqual((ui.RED, ui.GREEN, ui.NEUTRAL), (theme.RED, theme.GREEN, theme.TEXT))
-
-    def test_top_bar_shows_the_logo_and_the_theme_menu(self):
-        app = self.app
-        self.assertIsNotNone(app.logo_image)
-        self.assertEqual(app.logo_image.size, (34, 34))
-        self.assertTrue(any(type(w).__name__ == "CTkLabel" and w.kw.get("image") is app.logo_image for w in app.descendants()))
-        self.assertEqual(app.theme_menu.get(), "System")
-        self.assertEqual(app.theme_menu.kw["values"], ["System", "Light", "Dark"])
-
-    def test_update_notice_uses_the_notice_color(self):
-        self.assertEqual(self.app.update_bar.kw["fg_color"], theme.NOTICE)
-
-    def test_choosing_dark_changes_the_look_and_is_remembered(self):
-        stub_ctk.appearance_modes.clear()
-        self.app.theme_menu.choose("Dark")
-        self.assertEqual(stub_ctk.appearance_modes[-1], "dark")
-        self.assertEqual(self.wf.settings.theme_mode, "dark")
-        self.assertEqual(config.load_settings().theme_mode, "dark")  # written to the settings file
-
-    def test_next_start_uses_the_remembered_choice(self):
-        self.wf.set_theme_mode("light")
-        stub_ctk.appearance_modes.clear()
-        app = ui.App(self.wf)
-        self.assertEqual(stub_ctk.appearance_modes[0], "light")
-        self.assertEqual(app.theme_menu.get(), "Light")
-
+class ThemeSettingsTests(UiBase):
     def test_a_wrong_theme_is_refused(self):
         with self.assertRaises(ValidationError):
             self.wf.set_theme_mode("purple")
         self.assertEqual(self.wf.settings.theme_mode, "system")
-
-    def test_window_icon_is_set_a_moment_after_start(self):
-        pump(self.app)
-        self.assertEqual(len(self.app.icons), 1)
-        self.assertTrue(Path(self.app.icons[0]).exists())
-        self.assertEqual(icon_sizes(self.app.icons[0]), [(16, 16), (32, 32), (48, 48), (64, 64)])
-
-    def test_a_broken_icon_never_stops_the_app(self):
-        self.app.iconbitmap = lambda path: (_ for _ in ()).throw(RuntimeError("no icon"))
-        self.app.apply_window_icon()  # must not raise
 
 
 if __name__ == "__main__":

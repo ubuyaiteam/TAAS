@@ -3,6 +3,8 @@
 Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; this file is for people.
 
 ## Unreleased
+
+## 1.2.0
 - New look: a sidebar with the four steps (a tick appears when a step is done), a white card for the form, and the
   main buttons at the bottom right with a quiet **Back** next to them. Calm indigo and lavender-grey colors with the
   Ubuy yellow on the logo badge, rounded boxes and one readable font.
@@ -12,6 +14,7 @@ Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; thi
 - Pages that could not be read, and check warnings, now show in a soft amber instead of red. Posting errors still show
   in red.
 - The first button is now called **Read my pages**. Everything else works as before.
+- URL entry starts with one field; add up to two more with **+ Add another URL**.
 
 ## 1.1.0
 - Pictures in articles: a new **Images** section on the article screen. Paste a picture address and a description,
