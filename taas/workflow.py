@@ -25,6 +25,7 @@ from .openai import OpenAIClient
 from .inputs import validate_keywords, validate_urls  # input checks
 from .pagereader import PageInfo, read_page  # read web pages
 from .safeguards import PostLog  # posting limit and repeat warning
+from .self_update import install_update  # safely replace a packaged Windows executable
 from .terms import forbidden_terms  # brand and domain names to block
 
 
@@ -173,6 +174,10 @@ class Workflow:
     # Open the download page of a release
     def open_download_page(self, info):
         self.open_browser(info.url)
+
+    # Install a verified release and let the updater restart the app
+    def install_update(self, info):
+        return install_update(info, token=self.settings.update_token)
 
     # ------------------------------------------------------------ Google
 

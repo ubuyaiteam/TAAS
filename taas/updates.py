@@ -25,6 +25,8 @@ class UpdateInfo:
     url: str  # page where the new version can be downloaded
     notes: str  # what changed (cut short)
     newer: bool  # True when latest is newer than current
+    download_url: str = ""  # verified TAAS.exe asset from the release
+    digest: str = ""  # GitHub's published asset digest
 
     # One plain sentence for the user
     def message(self):
@@ -86,12 +88,24 @@ def check_for_update(current, repo, token="", http=requests, timeout=10):
     try:
         data = resp.json()
         tag = str(data["tag_name"])
+        assets = data.get("assets", [])
+        if not isinstance(assets, list):
+            assets = []
+        installer = next(
+            (
+                asset for asset in assets
+                if isinstance(asset, dict) and str(asset.get("name", "")).casefold() == "taas.exe"
+            ),
+            {},
+        )
         return UpdateInfo(
             current=current,
             latest=tag.lstrip("vV"),
             url=str(data.get("html_url") or f"https://github.com/{repo}/releases"),
             notes=str(data.get("body") or "").strip()[:NOTES_LIMIT],
             newer=is_newer(tag, current),
+            download_url=str(installer.get("browser_download_url") or ""),
+            digest=str(installer.get("digest") or ""),
         )
     except (ValueError, KeyError, TypeError):
         raise UpdateError("GitHub gave an answer that could not be understood.")

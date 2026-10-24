@@ -140,8 +140,12 @@ class UpdateScreenTests(UiBase):
         self.infos = []
         self.opened = []
         self.shown = []
+        self.questions = []
+        self.answer = True
+        self.installs = []
         self.wf._update_check = lambda current, repo, token="": self.next_result(current, repo)
         self.wf.open_browser = self.opened.append
+        self.wf.install_update = self.installs.append
         self.wf.settings.update_repo = "o/r"
         self.result = UpdateInfo("1.1.0", "1.3.0", "https://github.com/o/r/releases/tag/v1.3.0", "Pictures in articles", True)
 
@@ -154,6 +158,9 @@ class UpdateScreenTests(UiBase):
     def new_app(self, auto_check):
         app = ui.App(self.wf, auto_check=auto_check)
         app.show_info = lambda title, message: self.shown.append((title, message))
+        app.ask_yes_no = lambda title, message: (
+            self.questions.append((title, message)), self.answer
+        )[1]
         self.app = app
         return app
 
@@ -174,8 +181,11 @@ class UpdateScreenTests(UiBase):
         self.assertIn("New version 1.3.0 is available (you have 1.1.0).", labels(self.app))
         self.assertEqual(self.shown, [])  # no pop-up, and nothing blocked
         self.assertFalse(self.app.busy)
-        find(self.app, "CTkButton", "Open download page").invoke()
-        self.assertEqual(self.opened, [self.result.url])
+        find(self.app, "CTkButton", "Install update and restart").invoke()
+        pump(self.app)
+        self.assertEqual(self.questions[-1][0], "Install TAAS update")
+        self.assertEqual(self.installs, [self.result])
+        self.assertTrue(self.app.destroyed)
 
     def test_start_up_check_stays_silent_when_up_to_date_or_failing(self):
         for result in (UpdateInfo("1.1.0", "1.1.0", "u", "", False), UpdateError("no")):
@@ -196,10 +206,29 @@ class UpdateScreenTests(UiBase):
     def test_button_reports_a_new_version(self):
         self.new_app(False)
         self.click("Check for updates")
-        self.assertEqual(len(self.shown), 1)
-        self.assertIn("1.3.0", self.shown[0][1])
-        self.assertIn("Pictures in articles", self.shown[0][1])
-        self.assertIn("New version 1.3.0 is available (you have 1.1.0).", labels(self.app))
+        self.assertEqual(self.shown, [])
+        self.assertIn("1.3.0", self.questions[0][1])
+        self.assertIn("Pictures in articles", self.questions[0][1])
+        self.assertIn("restart", self.questions[0][1])
+        self.assertEqual(self.installs, [self.result])
+        self.assertTrue(self.app.destroyed)
+
+    def test_declining_an_update_keeps_the_app_open(self):
+        self.answer = False
+        self.new_app(False)
+        self.click("Check for updates")
+        self.assertEqual(self.questions[0][0], "Install TAAS update")
+        self.assertEqual(self.installs, [])
+        self.assertFalse(self.app.destroyed)
+
+    def test_failed_update_offers_the_manual_release_page(self):
+        self.wf.install_update = lambda info: (_ for _ in ()).throw(UpdateError("checksum mismatch"))
+        self.new_app(False)
+        self.click("Check for updates")
+        self.assertEqual(self.shown[0], ("Update failed", "checksum mismatch"))
+        self.assertEqual(self.questions[-1][0], "Manual update")
+        self.assertEqual(self.opened, [self.result.url])
+        self.assertFalse(self.app.destroyed)
 
     def test_button_reports_up_to_date(self):
         self.result = UpdateInfo("1.1.0", "1.1.0", "u", "", False)

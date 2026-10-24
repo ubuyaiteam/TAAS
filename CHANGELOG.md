@@ -4,6 +4,9 @@ Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; thi
 
 ## Unreleased
 
+## 1.2.1
+- Update checks now download, verify and install the Windows executable, then restart TAAS after confirmation.
+
 ## 1.2.0
 - New look: a sidebar with the four steps (a tick appears when a step is done), a white card for the form, and the
   main buttons at the bottom right with a quiet **Back** next to them. Calm indigo and lavender-grey colors with the

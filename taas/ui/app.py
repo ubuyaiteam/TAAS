@@ -108,8 +108,8 @@ class App(ctk.CTk):
         self.update_label = ctk.CTkLabel(self.update_bar, text="", anchor="w", text_color=INK, font=font(13))
         self.update_label.pack(side="left", padx=14, pady=8)
         self.update_info = None
-        self.update_button = ctk.CTkButton(self.update_bar, text="Open download page", width=170,
-                                           command=self.on_open_download, **main_button())
+        self.update_button = ctk.CTkButton(self.update_bar, text="Install update and restart", width=210,
+                                           command=self.on_install_update, **main_button())
         self.update_button.configure(height=34)
         self.update_button.pack(side="right", padx=10, pady=6)
 
@@ -248,7 +248,10 @@ class App(ctk.CTk):
         text = value.message()
         if value.newer and value.notes:
             text += "\n\nWhat is new:\n" + value.notes
-        self.show_info("Check for updates", text)
+        if value.newer:
+            self.confirm_update(value, text)
+        else:
+            self.show_info("Check for updates", text)
 
     # The quiet check at start-up: speak up only when there is news
     def after_quiet_check(self, kind, value):
@@ -264,9 +267,31 @@ class App(ctk.CTk):
         else:
             self.update_bar.pack_forget()
 
-    def on_open_download(self):
+    def on_install_update(self):
         if self.update_info:
-            self.workflow.open_download_page(self.update_info)
+            self.confirm_update(self.update_info)
+
+    def confirm_update(self, info, details=""):
+        message = details or info.message()
+        message += (
+            "\n\nTAAS will download and verify the new version, replace this executable, "
+            "and restart. Continue?"
+        )
+        if not self.ask_yes_no("Install TAAS update", message):
+            return
+        self.run_task(
+            lambda: self.workflow.install_update(info),
+            lambda kind, value: self.after_update(info, kind, value),
+            f"Downloading TAAS {info.latest}...",
+        )
+
+    def after_update(self, info, kind, value):
+        if kind == "error":
+            self.show_info("Update failed", str(value))
+            if self.ask_yes_no("Manual update", "Open the release page to download TAAS manually?"):
+                self.workflow.open_download_page(info)
+            return
+        self.destroy()
 
     # Tell the user something in a pop-up
     def show_info(self, title, message):
