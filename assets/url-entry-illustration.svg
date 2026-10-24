@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="760" viewBox="0 0 1120 760" fill="none">
+  <rect width="1120" height="760" rx="28" fill="#FFFDF7"/>
+  <rect x="24" y="24" width="1072" height="712" rx="24" fill="#FFFFFF" stroke="#E9E3D2"/>
+
+  <text x="68" y="88" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">TAAS</text>
+  <rect x="68" y="112" width="52" height="4" rx="2" fill="#FFB900"/>
+  <text x="68" y="164" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700">Let's write your article</text>
+  <text x="68" y="196" fill="#656879" font-family="Segoe UI, Arial, sans-serif" font-size="16">Add the pages you want TAAS to use. You can add more URLs whenever you need them.</text>
+
+  <rect x="68" y="228" width="984" height="300" rx="20" fill="#FFFFFF" stroke="#E9E3D2"/>
+  <text x="100" y="274" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Product pages</text>
+  <text x="100" y="300" fill="#656879" font-family="Segoe UI, Arial, sans-serif" font-size="14">Add 2 or 3 URLs to create links in your article.</text>
+
+  <text x="100" y="346" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Page 1</text>
+  <rect x="100" y="362" width="920" height="52" rx="14" fill="#FFFFFF" stroke="#D9D5CA" stroke-width="2"/>
+  <text x="122" y="394" fill="#8A8FB0" font-family="Segoe UI, Arial, sans-serif" font-size="15">https://</text>
+
+  <rect x="100" y="438" width="220" height="44" rx="22" fill="#F5F1E5"/>
+  <circle cx="124" cy="460" r="10" fill="#FFB900"/>
+  <path d="M124 455V465M119 460H129" stroke="#20243A" stroke-width="2" stroke-linecap="round"/>
+  <text x="144" y="465" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Add another URL</text>
+  <text x="100" y="506" fill="#656879" font-family="Segoe UI, Arial, sans-serif" font-size="13">You can add up to 3 URLs.</text>
+
+  <text x="68" y="580" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">Keywords people might search for</text>
+  <rect x="68" y="598" width="984" height="74" rx="14" fill="#FFFFFF" stroke="#D9D5CA" stroke-width="2"/>
+  <text x="90" y="630" fill="#8A8FB0" font-family="Segoe UI, Arial, sans-serif" font-size="14">Add keywords, one per line or separated by commas</text>
+
+  <rect x="852" y="686" width="200" height="40" rx="20" fill="#FFB900"/>
+  <text x="884" y="712" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700">Read my pages</text>
+</svg>

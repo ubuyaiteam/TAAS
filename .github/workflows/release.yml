@@ -1,0 +1,60 @@
+# Publishes a GitHub Release with TAAS.exe when a version tag is pushed (made by release.py).
+# Tag v1.2.0 = normal release (users are told about it). Tag v1.2.0-rc1 = test release (users are not told).
+name: Release TAAS.exe
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # needed to create the release
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the tag matches the app version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $match = Select-String -Path taas\__init__.py -Pattern '__version__ = "(.+?)"'
+          $version = $match.Matches[0].Groups[1].Value
+          if ($tag -ne $version) {
+            Write-Error "The tag is $tag but taas/__init__.py says $version. Use release.py to make releases."
+            exit 1
+          }
+
+      - name: Install libraries
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Run the tests
+        run: python -m unittest discover -s tests -t .
+
+      - name: Make the icon
+        run: python make_icon.py
+
+      - name: Build TAAS.exe
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas.ico --collect-all customtkinter run_taas.py
+
+      - name: Make the release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item dist\TAAS.exe release\
+          Copy-Item USER_GUIDE.md release\
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $flags = @()
+          if ("${{ github.ref_name }}" -match "-") { $flags += "--prerelease" }
+          gh release create "${{ github.ref_name }}" release\TAAS.exe release\USER_GUIDE.md --title "TAAS ${{ github.ref_name }}" --generate-notes @flags

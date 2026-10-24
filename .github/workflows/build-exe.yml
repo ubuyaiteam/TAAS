@@ -1,0 +1,40 @@
+# Builds TAAS.exe on a free Windows machine in the cloud (GitHub Actions).
+# Start it from the "Actions" tab: Build TAAS.exe > Run workflow.
+name: Build TAAS.exe
+
+on:
+  workflow_dispatch:   # the "Run workflow" button
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install libraries
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Run the tests
+        run: python -m unittest discover -s tests -t .
+
+      - name: Make the icon
+        run: python make_icon.py
+
+      - name: Build TAAS.exe
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas.ico --collect-all customtkinter run_taas.py
+
+      - name: Make the release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item dist\TAAS.exe release\
+          Copy-Item USER_GUIDE.md release\
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TAAS-windows
+          path: release
