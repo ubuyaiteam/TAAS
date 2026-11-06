@@ -49,7 +49,6 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
-          Copy-Item dist\TAAS.exe release\
           Copy-Item USER_GUIDE.md release\
           New-Item -ItemType Directory -Force installer_output | Out-Null
 

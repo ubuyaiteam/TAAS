@@ -22,13 +22,13 @@ jobs:
         run: python -m unittest discover -s tests -t .
 
       - name: Build TAAS.exe
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas-logo.ico --add-data "assets/taas-logo.ico;assets" --collect-all customtkinter run_taas.py
+        run: pyinstaller --noconfirm --clean TAAS.spec
 
       - name: Make the release folder
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
-          Copy-Item dist\TAAS.exe release\
+          Copy-Item dist\TAAS release\ -Recurse
           Copy-Item USER_GUIDE.md release\
 
       - uses: actions/upload-artifact@v4

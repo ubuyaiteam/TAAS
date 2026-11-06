@@ -44,7 +44,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\TAAS\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "release\USER_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "client_secret.json"; DestDir: "{userappdata}\TAAS"; Flags: ignoreversion skipifsourcedoesntexist
 

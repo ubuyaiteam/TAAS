@@ -197,7 +197,7 @@ class App(ctk.CTk):
         ).pack(fill="x", padx=28, pady=(8, 0))
         ctk.CTkLabel(
             bar, text="Created by UBAIT", anchor="w", text_color=MUTED, font=font(11)
-        ).pack(fill="x", padx=28, pady=(2, 18))
+        ).pack(fill="x", padx=28, pady=(2, 28))
 
     def sidebar_option(self, icon, text, command, pady=0):
         row = ctk.CTkFrame(self.sidebar, fg_color="transparent")

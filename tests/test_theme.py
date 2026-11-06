@@ -46,11 +46,11 @@ class IconTests(unittest.TestCase):
         release_workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         self.assertIn("TAAS.spec", release_workflow)
         build_workflow = (ROOT / ".github/workflows/build-exe.yml").read_text(encoding="utf-8")
-        self.assertIn("taas-logo.ico", build_workflow)
-        self.assertIn("--add-data", build_workflow)
-        self.assertIn("--icon", build_workflow)
         spec = (ROOT / "TAAS.spec").read_text(encoding="utf-8")
         self.assertIn("('assets/taas-logo.ico', 'assets')", spec)
+        self.assertIn("exclude_binaries=True", spec)
+        self.assertIn("coll = COLLECT(", spec)
+        self.assertIn("upx=False", spec)
         build_script = (ROOT / "build_exe.bat").read_text(encoding="utf-8")
         self.assertIn("TAAS.spec", build_script)
         self.assertIn("taas_setup.iss", build_script)
@@ -59,7 +59,10 @@ class IconTests(unittest.TestCase):
         installer = (ROOT / "taas_setup.iss").read_text(encoding="utf-8")
         self.assertIn("MyAppVersion", installer)
         self.assertIn('SetupIconFile=assets\\taas-logo.ico', installer)
+        self.assertIn('Source: "dist\\TAAS\\*"', installer)
         self.assertIn('Source: "client_secret.json"', installer)
+        self.assertIn("TAAS.spec", build_workflow)
+        self.assertNotIn("--onefile", build_workflow)
 
 
 class ThemeSettingTests(unittest.TestCase):

@@ -89,6 +89,9 @@ class ThemeTests(UiBase):
                          if type(child).__name__ == "CTkLabel"]
         self.assertIn(f"Version {self.app.workflow.version}", sidebar_labels)
         self.assertIn("Created by UBAIT", sidebar_labels)
+        credit = next(child for child in self.app.sidebar.children
+                      if type(child).__name__ == "CTkLabel" and child.kw.get("text") == "Created by UBAIT")
+        self.assertEqual(credit.pack_options["pady"], (2, 28))
 
     def test_sidebar_follows_the_steps(self):
         self.assertEqual([step_state(self.app, n) for n in (1, 2, 3, 4)], ["later"] * 4)  # Setup: none yet

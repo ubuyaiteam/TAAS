@@ -29,8 +29,6 @@ for /f "delims=" %%V in ('venv\Scripts\python.exe -c "from taas import __version
 if not defined APP_VERSION goto :error
 
 if not exist release mkdir release
-copy /y "dist\TAAS.exe" "release\TAAS.exe" >nul
-if errorlevel 1 goto :error
 copy /y "USER_GUIDE.md" "release\USER_GUIDE.md" >nul
 if errorlevel 1 goto :error
 
