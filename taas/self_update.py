@@ -81,9 +81,100 @@ try {
 MAX_UPDATE_BYTES = 200 * 1024 * 1024
 
 
+def install_setup_update(info: UpdateInfo, token="", executable_path=None, http=None, popen=None, *,
+                         platform=None, frozen=None):
+    """Download, verify and start the versioned Inno Setup installer."""
+    platform = sys.platform if platform is None else platform
+    frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    if platform != "win32" or not frozen:
+        raise UpdateError("Installer updates are available only in the installed Windows TAAS app.")
+    if not info.newer:
+        raise UpdateError("There is no newer TAAS version to install.")
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z]+\d*)?", info.latest):
+        raise UpdateError("GitHub provided an invalid TAAS version for the installer.")
+
+    filename = f"TAAS_Setup_{info.latest}.exe"
+    parsed_url = urlparse(info.installer_url)
+    if (parsed_url.scheme != "https" or parsed_url.hostname != "github.com"
+            or not parsed_url.path.casefold().endswith("/" + filename.casefold())):
+        raise UpdateError(f"GitHub did not provide a valid {filename} download for this release.")
+    digest_match = re.fullmatch(r"sha256:([0-9a-fA-F]{64})", info.installer_digest)
+    if not digest_match:
+        raise UpdateError("GitHub did not provide a SHA-256 checksum for the installer. It was not started.")
+
+    target = Path(executable_path or sys.executable).resolve()
+    if not target.is_file():
+        raise UpdateError(f"Could not find the running TAAS executable: {target}")
+    update_dir = Path(tempfile.mkdtemp(prefix="taas-installer-update-"))
+    installer_path = update_dir / filename
+    http = http or requests
+    popen = popen or subprocess.Popen
+    response = None
+    try:
+        headers = {"Accept": "application/octet-stream", "User-Agent": "TAAS-updater"}
+        if token:
+            headers["Authorization"] = f"******"
+        try:
+            response = http.get(info.installer_url, headers=headers, stream=True, timeout=(10, 60))
+        except (requests.ConnectionError, requests.Timeout):
+            raise NetworkError("Could not download the TAAS installer. Check the internet connection.")
+        except requests.RequestException:
+            raise UpdateError("The TAAS installer download failed.")
+
+        if response.status_code >= 400:
+            raise UpdateError(f"GitHub could not provide the installer (HTTP {response.status_code}).")
+        digest = hashlib.sha256()
+        size = 0
+        try:
+            with installer_path.open("wb") as downloaded:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        downloaded.write(chunk)
+                        digest.update(chunk)
+                        size += len(chunk)
+                        if size > MAX_UPDATE_BYTES:
+                            raise UpdateError("The TAAS installer is unexpectedly large. It was not started.")
+        except (requests.RequestException, OSError):
+            raise NetworkError("The TAAS installer could not be downloaded completely.")
+        if size == 0:
+            raise UpdateError("GitHub returned an empty TAAS installer. It was not started.")
+        if digest.hexdigest().casefold() != digest_match.group(1).casefold():
+            raise UpdateError("The TAAS installer checksum did not match GitHub's release. It was not started.")
+
+        creationflags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        popen(
+            [str(installer_path)],
+            cwd=str(target.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+        return installer_path
+    except (OSError, requests.RequestException) as error:
+        shutil.rmtree(update_dir, ignore_errors=True)
+        raise UpdateError(f"Could not start the TAAS installer: {error}")
+    except Exception:
+        shutil.rmtree(update_dir, ignore_errors=True)
+        raise
+    finally:
+        if response is not None:
+            response.close()
+
+
 def install_update(info: UpdateInfo, token="", executable_path=None, http=None, popen=None, *,
                    platform=None, frozen=None, powershell=None, process_id=None):
     """Download, verify and start the Windows updater helper."""
+    if info.installer_url:
+        return install_setup_update(
+            info,
+            token=token,
+            executable_path=executable_path,
+            http=http,
+            popen=popen,
+            platform=platform,
+            frozen=frozen,
+        )
     platform = sys.platform if platform is None else platform
     frozen = getattr(sys, "frozen", False) if frozen is None else frozen
     if platform != "win32" or not frozen:

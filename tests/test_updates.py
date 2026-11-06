@@ -73,6 +73,7 @@ RELEASE = {
     }, {
         "name": "TAAS_Setup_1.3.0.exe",
         "browser_download_url": "https://github.com/o/r/releases/download/v1.3.0/TAAS_Setup_1.3.0.exe",
+        "digest": "sha256:" + "b" * 64,
     }],
 }
 
@@ -111,6 +112,7 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(info.download_url, RELEASE["assets"][0]["browser_download_url"])
         self.assertEqual(info.digest, RELEASE["assets"][0]["digest"])
         self.assertEqual(info.installer_url, RELEASE["assets"][1]["browser_download_url"])
+        self.assertEqual(info.installer_digest, RELEASE["assets"][1]["digest"])
         self.assertIn("1.3.0", info.message())
         self.assertTrue(http.calls[0]["url"].endswith("/repos/o/r/releases/latest"))
         self.assertNotIn("Authorization", http.calls[0]["headers"])
@@ -158,7 +160,7 @@ class CheckTests(unittest.TestCase):
             "tag_name": "v1.3.0",
             "assets": [{"name": "USER_GUIDE.md", "browser_download_url": "https://github.com/o/r/guide"}],
         })))
-        self.assertEqual((info.download_url, info.digest, info.installer_url), ("", "", ""))
+        self.assertEqual((info.download_url, info.digest, info.installer_url, info.installer_digest), ("", "", "", ""))
 
     def test_installer_link_must_be_https_github_asset_for_release_version(self):
         for url in (
@@ -168,7 +170,8 @@ class CheckTests(unittest.TestCase):
         ):
             info = self.check(FakeHttp(FakeResponse(200, {
                 "tag_name": "v1.3.0",
-                "assets": [{"name": "TAAS_Setup_1.3.0.exe", "browser_download_url": url}],
+                "assets": [{"name": "TAAS_Setup_1.3.0.exe", "browser_download_url": url,
+                            "digest": "sha256:" + "b" * 64}],
             })))
             self.assertEqual(info.installer_url, "")
 
@@ -303,6 +306,101 @@ class InstallUpdateTests(unittest.TestCase):
                     )
 
 
+class InstallSetupUpdateTests(unittest.TestCase):
+    CONTENT = b"TAAS setup installer"
+
+    def make_info(self, **overrides):
+        values = {
+            "current": "2.0.1",
+            "latest": "2.0.2",
+            "url": "https://github.com/o/r/releases/tag/v2.0.2",
+            "notes": "",
+            "newer": True,
+            "installer_url": "https://github.com/o/r/releases/download/v2.0.2/TAAS_Setup_2.0.2.exe",
+            "installer_digest": "sha256:" + hashlib.sha256(self.CONTENT).hexdigest(),
+        }
+        values.update(overrides)
+        return UpdateInfo(**values)
+
+    def test_setup_is_downloaded_verified_and_launched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "TAAS.exe"
+            target.write_bytes(b"current app")
+            update_dir = Path(tmp) / "installer-download"
+            update_dir.mkdir()
+            response = FakeDownloadResponse(self.CONTENT)
+            http = FakeDownloadHttp(response)
+            launcher = mock.Mock()
+            with mock.patch.object(self_update.tempfile, "mkdtemp", return_value=str(update_dir)):
+                installer_path = self_update.install_update(
+                    self.make_info(),
+                    executable_path=target,
+                    http=http,
+                    popen=launcher,
+                    platform="win32",
+                    frozen=True,
+                )
+            args, kwargs = launcher.call_args
+            self.assertEqual(http.calls[0][0], self.make_info().installer_url)
+            self.assertTrue(http.calls[0][2])
+            self.assertTrue(response.closed)
+            self.assertEqual(installer_path.name, "TAAS_Setup_2.0.2.exe")
+            self.assertEqual(installer_path.read_bytes(), self.CONTENT)
+            self.assertEqual(args[0], [str(installer_path)])
+            self.assertEqual(kwargs["cwd"], str(target.parent))
+
+    def test_invalid_installer_checksum_does_not_launch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "TAAS.exe"
+            target.write_bytes(b"current app")
+            update_dir = Path(tmp) / "installer-download"
+            update_dir.mkdir()
+            launcher = mock.Mock()
+            response = FakeDownloadResponse(self.CONTENT)
+            with mock.patch.object(self_update.tempfile, "mkdtemp", return_value=str(update_dir)):
+                with self.assertRaisesRegex(UpdateError, "checksum"):
+                    self_update.install_update(
+                        self.make_info(installer_digest="sha256:" + "0" * 64),
+                        executable_path=target,
+                        http=FakeDownloadHttp(response),
+                        popen=launcher,
+                        platform="win32",
+                        frozen=True,
+                    )
+            launcher.assert_not_called()
+            self.assertTrue(response.closed)
+            self.assertFalse(update_dir.exists())
+
+    def test_invalid_installer_metadata_is_rejected(self):
+        for info in (
+            self.make_info(installer_url="http://github.com/o/r/TAAS_Setup_2.0.2.exe"),
+            self.make_info(installer_digest=""),
+            self.make_info(newer=False),
+            self.make_info(latest="../bad"),
+        ):
+            with self.assertRaises(UpdateError):
+                self_update.install_update(
+                    info,
+                    platform="win32",
+                    frozen=True,
+                    http=FakeDownloadHttp(),
+                )
+
+    def test_setup_download_connection_failure_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "TAAS.exe"
+            target.write_bytes(b"current app")
+            with mock.patch.object(self_update.tempfile, "mkdtemp", return_value=str(Path(tmp) / "download")):
+                with self.assertRaises(NetworkError):
+                    self_update.install_update(
+                        self.make_info(),
+                        executable_path=target,
+                        http=FakeDownloadHttp(error=requests.ConnectionError("offline")),
+                        platform="win32",
+                        frozen=True,
+                    )
+
+
 class ReleaseScriptTests(unittest.TestCase):
     def test_version_check(self):
         for good in ("1.2.0", "10.0.1", "1.2.0-rc1"):
@@ -336,6 +434,7 @@ class ReleaseScriptTests(unittest.TestCase):
             self.assertIn(part, workflow)
         publish_command = next(line for line in workflow.splitlines() if "gh release create" in line)
         self.assertNotIn("release\\TAAS.exe", publish_command)
+        self.assertIn("Co-authored-by: Copilot", release.CO_AUTHOR_TRAILER)
 
 
 if __name__ == "__main__":

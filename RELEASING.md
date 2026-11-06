@@ -28,8 +28,9 @@
 
 ## What users see
 - A running TAAS asks GitHub for the latest release when it starts, and when the user clicks **Check for updates**.
-- If the latest release number is higher than the version in the app, the top bar offers the versioned Inno Setup
-  installer. Close TAAS before running the downloaded installer.
+- If the latest release number is higher than the version in the app, the top bar offers to download and install the
+  versioned Inno Setup installer. TAAS closes to let setup replace the installed files; finish setup to reopen the new
+  version.
 - Version numbers: `1.2.0` is a normal release. `1.2.0-rc1` (with a dash) is published as a **pre-release** and users
   are NOT told about it, so you can test the build first. The next normal release `1.2.0` then counts as newer.
 

@@ -3,8 +3,8 @@
     python release.py 1.2.0          bump the version, test, commit and tag (nothing is uploaded)
     python release.py 1.2.0 --push   the same, then upload the commit and the tag to GitHub
 
-Pushing the tag starts the "Release TAAS.exe" workflow on GitHub. It builds the .exe and publishes it
-as a GitHub Release. The running apps then tell their users that a new version is available.
+Pushing the tag starts the "Release TAAS" workflow on GitHub. It builds the .exe, packages it in an installer,
+and publishes the setup installer as a GitHub Release.
 A version with a dash, like 1.2.0-rc1, is published as a test release that users are NOT told about.
 """
 
@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent  # the project folder
 VERSION_FILE = ROOT / "taas" / "__init__.py"  # the one place the version is written
 VERSION_OK = re.compile(r"^\d+\.\d+\.\d+(-[A-Za-z]+\d*)?$")  # 1.2.0 or 1.2.0-rc1
 VERSION_LINE = re.compile(r'^__version__ = "[^"]*"', re.MULTILINE)
+CO_AUTHOR_TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
 
 class ReleaseError(Exception):
@@ -71,7 +72,7 @@ def main(argv=None):
             raise
         run("git", "add", str(VERSION_FILE.relative_to(ROOT)))
         if run("git", "status", "--porcelain", capture=True):  # skip the commit when the version did not change
-            run("git", "commit", "-m", f"Release {tag}")
+            run("git", "commit", "-m", f"Release {tag}", "-m", CO_AUTHOR_TRAILER)
         run("git", "tag", "-a", tag, "-m", f"TAAS {version}")
         print(f"Committed and tagged {tag}.")
         if args.push:

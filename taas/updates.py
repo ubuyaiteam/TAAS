@@ -29,6 +29,7 @@ class UpdateInfo:
     download_url: str = ""  # verified TAAS.exe asset from the release
     digest: str = ""  # GitHub's published asset digest
     installer_url: str = ""  # versioned Inno Setup installer asset from the release
+    installer_digest: str = ""  # SHA-256 digest published by GitHub
 
     # One plain sentence for the user
     def message(self):
@@ -122,6 +123,7 @@ def check_for_update(current, repo, token="", http=requests, timeout=10):
             download_url=str(app_exe.get("browser_download_url") or ""),
             digest=str(app_exe.get("digest") or ""),
             installer_url=setup_url,
+            installer_digest=str(setup.get("digest") or ""),
         )
     except (ValueError, KeyError, TypeError):
         raise UpdateError("GitHub gave an answer that could not be understood.")

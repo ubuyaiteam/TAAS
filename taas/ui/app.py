@@ -122,7 +122,7 @@ class App(ctk.CTk):
         self.update_label = ctk.CTkLabel(self.update_bar, text="", anchor="w", text_color=INK, font=font(13))
         self.update_label.pack(side="left", padx=14, pady=8)
         self.update_info = None
-        self.update_button = ctk.CTkButton(self.update_bar, text="Download installer", width=210,
+        self.update_button = ctk.CTkButton(self.update_bar, text="Download and install", width=210,
                                            command=self.on_install_update, **main_button())
         self.update_button.configure(height=34)
         self.update_button.pack(side="right", padx=10, pady=6)
@@ -357,7 +357,7 @@ class App(ctk.CTk):
         self.update_info = info
         if info.newer:
             self.update_label.configure(text=f"New version {info.latest} is available (you have {info.current}).")
-            self.update_button.configure(text="Download installer" if info.installer_url else "Open release page")
+            self.update_button.configure(text="Download and install" if info.installer_url else "Open release page")
             self.update_bar.pack(fill="x", padx=40, pady=(22, 0), before=self.status)
         else:
             self.update_bar.pack_forget()
@@ -370,11 +370,15 @@ class App(ctk.CTk):
         message = details or info.message()
         if info.installer_url:
             message += (
-                f"\n\nOpen the download for TAAS_Setup_{info.latest}.exe? "
-                "After it downloads, close TAAS and run the installer. Your settings will be kept."
+                f"\n\nDownload and verify TAAS_Setup_{info.latest}.exe, then open its installer? "
+                "TAAS will close. Finish the installer to reopen the updated version; your settings will be kept."
             )
-            if self.ask_yes_no("Download TAAS installer", message):
-                self.workflow.open_browser(info.installer_url)
+            if self.ask_yes_no("Install TAAS update", message):
+                self.run_task(
+                    lambda: self.workflow.install_update(info),
+                    lambda kind, value: self.after_update(info, kind, value),
+                    f"Downloading and verifying TAAS {info.latest} installer...",
+                )
             return
         message += (
             f"\n\nThis release does not include TAAS_Setup_{info.latest}.exe. "
