@@ -5,7 +5,7 @@
 #define MyAppName "TAAS"
 #define MyAppFullName "TAAS - Tool for Automatic Article Submission"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.1"
+  #define MyAppVersion "2.0.0"
 #endif
 #define MyAppPublisher "Ubuy"
 #define MyAppExeName "TAAS.exe"
@@ -46,7 +46,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 [Files]
 Source: "release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "release\USER_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "client_secret.json"; DestDir: "{userappdata}\TAAS"; Flags: ignoreversion
+Source: "client_secret.json"; DestDir: "{userappdata}\TAAS"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

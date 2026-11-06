@@ -43,11 +43,12 @@ class IconTests(unittest.TestCase):
         self.assertEqual(icon_sizes(LOGO_ICON), sorted((s, s) for s in ICON_SIZES))
 
     def test_build_scripts_use_the_icon(self):
-        for name in (".github/workflows/release.yml", ".github/workflows/build-exe.yml"):
-            text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("taas-logo.ico", text, name)
-            self.assertIn("--add-data", text, name)
-            self.assertIn("--icon", text, name)
+        release_workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        self.assertIn("TAAS.spec", release_workflow)
+        build_workflow = (ROOT / ".github/workflows/build-exe.yml").read_text(encoding="utf-8")
+        self.assertIn("taas-logo.ico", build_workflow)
+        self.assertIn("--add-data", build_workflow)
+        self.assertIn("--icon", build_workflow)
         spec = (ROOT / "TAAS.spec").read_text(encoding="utf-8")
         self.assertIn("('assets/taas-logo.ico', 'assets')", spec)
         build_script = (ROOT / "build_exe.bat").read_text(encoding="utf-8")

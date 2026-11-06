@@ -4,7 +4,8 @@ TAAS writes one helpful article from your web addresses and keywords, lets you r
 and posts it to your Blogger blog. Nothing is posted until you confirm.
 
 ## Before you start (once)
-1. Keep `TAAS.exe` and `client_secret.json` in the same folder. (Your admin gives you both.)
+1. Install TAAS using the setup file. Ask your admin for `client_secret.json` and place it at
+   `%APPDATA%\TAAS\client_secret.json` before signing in with Google. The public installer does not contain this file.
 2. You need an API key for **Gemini or OpenAI** and a **Google account that owns a Blogger blog**.
 3. Your Google address must be added as a test user by your admin (see GOOGLE_SETUP.md).
 
@@ -72,7 +73,7 @@ manual download. Your settings and sign-in stay, because they are kept in `%APPD
 ## Messages you may see
 | Message | What to do |
 | --- | --- |
-| Google client file not found | Put `client_secret.json` next to `TAAS.exe`. |
+| Google client file not found | Ask your admin for `client_secret.json` and put it in `%APPDATA%\TAAS`. |
 | Google access expired or was revoked. Please sign in again. | Open Setup and click **Use another Google account** or **Sign in with Google**. |
 | Gemini or OpenAI did not accept the API key | Check the selected provider's key in Setup. |
 | The selected provider's model was not found | Ask your admin for the right model name and enter it in Setup. |

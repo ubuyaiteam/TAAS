@@ -1,6 +1,6 @@
-# Publishes a GitHub Release with TAAS.exe when a version tag is pushed (made by release.py).
+# Publishes TAAS.exe and its Windows installer when a version tag is pushed (made by release.py).
 # Tag v1.2.0 = normal release (users are told about it). Tag v1.2.0-rc1 = test release (users are not told).
-name: Release TAAS.exe
+name: Release TAAS
 
 on:
   push:
@@ -30,6 +30,7 @@ jobs:
             Write-Error "The tag is $tag but taas/__init__.py says $version. Use release.py to make releases."
             exit 1
           }
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install libraries
         run: pip install -r requirements.txt pyinstaller
@@ -38,7 +39,11 @@ jobs:
         run: python -m unittest discover -s tests -t .
 
       - name: Build TAAS.exe
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas-logo.ico --add-data "assets/taas-logo.ico;assets" --collect-all customtkinter run_taas.py
+        run: pyinstaller --noconfirm --clean TAAS.spec
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+        shell: pwsh
 
       - name: Make the release folder
         shell: pwsh
@@ -46,6 +51,19 @@ jobs:
           New-Item -ItemType Directory -Force release | Out-Null
           Copy-Item dist\TAAS.exe release\
           Copy-Item USER_GUIDE.md release\
+          New-Item -ItemType Directory -Force installer_output | Out-Null
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup compiler not found at $iscc"
+          }
+          & $iscc "/DMyAppVersion=$env:APP_VERSION" "taas_setup.iss"
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
       - name: Publish the release
         shell: pwsh
@@ -54,4 +72,8 @@ jobs:
         run: |
           $flags = @()
           if ("${{ github.ref_name }}" -match "-") { $flags += "--prerelease" }
-          gh release create "${{ github.ref_name }}" release\TAAS.exe release\USER_GUIDE.md --title "TAAS ${{ github.ref_name }}" --generate-notes @flags
+          $installer = "installer_output\TAAS_Setup_$env:APP_VERSION.exe"
+          if (-not (Test-Path $installer)) {
+            throw "Expected installer was not created: $installer"
+          }
+          gh release create "${{ github.ref_name }}" release\TAAS.exe release\USER_GUIDE.md $installer --title "TAAS ${{ github.ref_name }}" --generate-notes @flags
