@@ -2,6 +2,7 @@
 
 import re  # read version numbers
 from dataclasses import dataclass  # simple data classes
+from urllib.parse import urlparse
 
 import requests  # send web requests
 
@@ -27,6 +28,7 @@ class UpdateInfo:
     newer: bool  # True when latest is newer than current
     download_url: str = ""  # verified TAAS.exe asset from the release
     digest: str = ""  # GitHub's published asset digest
+    installer_url: str = ""  # versioned Inno Setup installer asset from the release
 
     # One plain sentence for the user
     def message(self):
@@ -91,21 +93,35 @@ def check_for_update(current, repo, token="", http=requests, timeout=10):
         assets = data.get("assets", [])
         if not isinstance(assets, list):
             assets = []
-        installer = next(
+        app_exe = next(
             (
                 asset for asset in assets
                 if isinstance(asset, dict) and str(asset.get("name", "")).casefold() == "taas.exe"
             ),
             {},
         )
+        setup_name = f"TAAS_Setup_{tag.lstrip('vV')}.exe"
+        setup = next(
+            (
+                asset for asset in assets
+                if isinstance(asset, dict) and str(asset.get("name", "")).casefold() == setup_name.casefold()
+            ),
+            {},
+        )
+        setup_url = str(setup.get("browser_download_url") or "")
+        parsed_setup_url = urlparse(setup_url)
+        if (parsed_setup_url.scheme != "https" or parsed_setup_url.hostname != "github.com"
+                or not parsed_setup_url.path.casefold().endswith("/" + setup_name.casefold())):
+            setup_url = ""
         return UpdateInfo(
             current=current,
             latest=tag.lstrip("vV"),
             url=str(data.get("html_url") or f"https://github.com/{repo}/releases"),
             notes=str(data.get("body") or "").strip()[:NOTES_LIMIT],
             newer=is_newer(tag, current),
-            download_url=str(installer.get("browser_download_url") or ""),
-            digest=str(installer.get("digest") or ""),
+            download_url=str(app_exe.get("browser_download_url") or ""),
+            digest=str(app_exe.get("digest") or ""),
+            installer_url=setup_url,
         )
     except (ValueError, KeyError, TypeError):
         raise UpdateError("GitHub gave an answer that could not be understood.")

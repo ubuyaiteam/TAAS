@@ -70,6 +70,9 @@ RELEASE = {
         "name": "TAAS.exe",
         "browser_download_url": "https://github.com/o/r/releases/download/v1.3.0/TAAS.exe",
         "digest": "sha256:" + "a" * 64,
+    }, {
+        "name": "TAAS_Setup_1.3.0.exe",
+        "browser_download_url": "https://github.com/o/r/releases/download/v1.3.0/TAAS_Setup_1.3.0.exe",
     }],
 }
 
@@ -107,6 +110,7 @@ class CheckTests(unittest.TestCase):
         self.assertEqual((info.latest, info.url, info.notes), ("1.3.0", RELEASE["html_url"], "Pictures in articles"))
         self.assertEqual(info.download_url, RELEASE["assets"][0]["browser_download_url"])
         self.assertEqual(info.digest, RELEASE["assets"][0]["digest"])
+        self.assertEqual(info.installer_url, RELEASE["assets"][1]["browser_download_url"])
         self.assertIn("1.3.0", info.message())
         self.assertTrue(http.calls[0]["url"].endswith("/repos/o/r/releases/latest"))
         self.assertNotIn("Authorization", http.calls[0]["headers"])
@@ -154,7 +158,19 @@ class CheckTests(unittest.TestCase):
             "tag_name": "v1.3.0",
             "assets": [{"name": "USER_GUIDE.md", "browser_download_url": "https://github.com/o/r/guide"}],
         })))
-        self.assertEqual((info.download_url, info.digest), ("", ""))
+        self.assertEqual((info.download_url, info.digest, info.installer_url), ("", "", ""))
+
+    def test_installer_link_must_be_https_github_asset_for_release_version(self):
+        for url in (
+            "http://github.com/o/r/releases/download/v1.3.0/TAAS_Setup_1.3.0.exe",
+            "https://example.com/TAAS_Setup_1.3.0.exe",
+            "https://github.com/o/r/releases/download/v1.3.0/TAAS_Setup_9.9.9.exe",
+        ):
+            info = self.check(FakeHttp(FakeResponse(200, {
+                "tag_name": "v1.3.0",
+                "assets": [{"name": "TAAS_Setup_1.3.0.exe", "browser_download_url": url}],
+            })))
+            self.assertEqual(info.installer_url, "")
 
     def test_no_internet(self):
         with self.assertRaises(NetworkError):
@@ -315,8 +331,11 @@ class ReleaseScriptTests(unittest.TestCase):
 
     def test_release_workflow_exists_and_checks_the_tag(self):
         workflow = (release.ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-        for part in ('tags:', '"v*"', "contents: write", "--prerelease", "gh release create", "TAAS.exe"):
+        for part in ('tags:', '"v*"', "contents: write", "--prerelease", "gh release create",
+                     "TAAS_Setup_$env:APP_VERSION.exe", "release\\USER_GUIDE.md"):
             self.assertIn(part, workflow)
+        publish_command = next(line for line in workflow.splitlines() if "gh release create" in line)
+        self.assertNotIn("release\\TAAS.exe", publish_command)
 
 
 if __name__ == "__main__":

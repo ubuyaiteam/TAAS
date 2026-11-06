@@ -20,16 +20,16 @@
    in `taas/__init__.py`, runs the tests, commits "Release v1.2.0" and creates the tag `v1.2.0`.
 4. Upload: `git push` then `git push origin v1.2.0` (or run step 3 with `--push`).
 5. On GitHub, the **Actions** tab shows "Release TAAS" running. When it is green, the **Releases** page has
-   `TAAS.exe`, `TAAS_Setup_<version>.exe`, and `USER_GUIDE.md`. The installer puts the app in Program Files and
-   keeps TAAS settings under `%APPDATA%\TAAS`.
+   `TAAS_Setup_<version>.exe` and `USER_GUIDE.md`. The app executable is included inside the installer, not published
+   as a separate download. The installer puts the app in Program Files and keeps TAAS settings under `%APPDATA%\TAAS`.
 6. The public release does not include `client_secret.json`. Obtain that file from your administrator and put it
    at `%APPDATA%\TAAS\client_secret.json` before signing in with Google. Do not upload a client file or API keys
    to a public release.
 
 ## What users see
 - A running TAAS asks GitHub for the latest release when it starts, and when the user clicks **Check for updates**.
-- If the latest release number is higher than the version in the app, the top bar shows
-  "New version X is available" and a button that opens the release page.
+- If the latest release number is higher than the version in the app, the top bar offers the versioned Inno Setup
+  installer. Close TAAS before running the downloaded installer.
 - Version numbers: `1.2.0` is a normal release. `1.2.0-rc1` (with a dash) is published as a **pre-release** and users
   are NOT told about it, so you can test the build first. The next normal release `1.2.0` then counts as newer.
 

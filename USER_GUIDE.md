@@ -57,11 +57,9 @@ Click **Write the article** (this takes a minute or two).
 ## Updates
 The sidebar shows the version you are running and which of the four steps you are on. **Dark mode** (bottom of the
 sidebar) switches to a dark look; TAAS starts light each time. When TAAS starts it quietly looks for a newer version, and shows
-**New version X is available** with an **Install update and restart** button if there is one. You can also click
-**Check for updates** at any time. Confirm the update to download and verify the new `TAAS.exe`; TAAS then replaces
-the running executable and restarts. Automatic updating requires the Windows app to be in a folder where your account
-can replace files. If installation fails, TAAS restores the previous executable and shows the release page for a
-manual download. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAAS`, not in the .exe.
+**New version X is available** with a **Download installer** button if there is one. You can also click
+**Check for updates** at any time. Confirm to download `TAAS_Setup_<version>.exe`, close TAAS, and run the installer.
+Your settings and sign-in stay, because they are kept in `%APPDATA%\TAAS`, not in the app installation folder.
 
 ## Good to know
 - Articles are about 300 to 400 words by default. Change this in Setup.

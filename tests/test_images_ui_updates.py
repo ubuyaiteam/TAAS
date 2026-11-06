@@ -146,7 +146,11 @@ class UpdateScreenTests(UiBase):
         self.wf.open_browser = self.opened.append
         self.wf.install_update = self.installs.append
         self.wf.settings.update_repo = "o/r"
-        self.result = UpdateInfo("1.1.0", "1.3.0", "https://github.com/o/r/releases/tag/v1.3.0", "Pictures in articles", True)
+        self.result = UpdateInfo(
+            "1.1.0", "1.3.0", "https://github.com/o/r/releases/tag/v1.3.0",
+            "Pictures in articles", True,
+            installer_url="https://github.com/o/r/releases/download/v1.3.0/TAAS_Setup_1.3.0.exe",
+        )
 
     def next_result(self, current, repo):
         self.infos.append((current, repo))
@@ -180,11 +184,12 @@ class UpdateScreenTests(UiBase):
         self.assertIn("New version 1.3.0 is available (you have 1.1.0).", labels(self.app))
         self.assertEqual(self.shown, [])  # no pop-up, and nothing blocked
         self.assertFalse(self.app.busy)
-        find(self.app, "CTkButton", "Install update and restart").invoke()
+        find(self.app, "CTkButton", "Download installer").invoke()
         pump(self.app)
-        self.assertEqual(self.questions[-1][0], "Install TAAS update")
-        self.assertEqual(self.installs, [self.result])
-        self.assertTrue(self.app.destroyed)
+        self.assertEqual(self.questions[-1][0], "Download TAAS installer")
+        self.assertEqual(self.opened, [self.result.installer_url])
+        self.assertEqual(self.installs, [])
+        self.assertFalse(self.app.destroyed)
 
     def test_start_up_check_stays_silent_when_up_to_date_or_failing(self):
         for result in (UpdateInfo("1.1.0", "1.1.0", "u", "", False), UpdateError("no")):
@@ -208,25 +213,30 @@ class UpdateScreenTests(UiBase):
         self.assertEqual(self.shown, [])
         self.assertIn("1.3.0", self.questions[0][1])
         self.assertIn("Pictures in articles", self.questions[0][1])
-        self.assertIn("restart", self.questions[0][1])
-        self.assertEqual(self.installs, [self.result])
-        self.assertTrue(self.app.destroyed)
+        self.assertIn("TAAS_Setup_1.3.0.exe", self.questions[0][1])
+        self.assertIn("close TAAS", self.questions[0][1])
+        self.assertEqual(self.opened, [self.result.installer_url])
+        self.assertEqual(self.installs, [])
+        self.assertFalse(self.app.destroyed)
 
     def test_declining_an_update_keeps_the_app_open(self):
         self.answer = False
         self.new_app(False)
         self.click("Check for updates")
-        self.assertEqual(self.questions[0][0], "Install TAAS update")
+        self.assertEqual(self.questions[0][0], "Download TAAS installer")
         self.assertEqual(self.installs, [])
         self.assertFalse(self.app.destroyed)
 
-    def test_failed_update_offers_the_manual_release_page(self):
-        self.wf.install_update = lambda info: (_ for _ in ()).throw(UpdateError("checksum mismatch"))
+    def test_release_without_installer_offers_release_page(self):
+        self.result = UpdateInfo(
+            "1.1.0", "1.3.0", "https://github.com/o/r/releases/tag/v1.3.0",
+            "Pictures in articles", True,
+        )
         self.new_app(False)
         self.click("Check for updates")
-        self.assertEqual(self.shown[0], ("Update failed", "checksum mismatch"))
-        self.assertEqual(self.questions[-1][0], "Manual update")
+        self.assertEqual(self.questions[-1][0], "Open TAAS release page")
         self.assertEqual(self.opened, [self.result.url])
+        self.assertEqual(self.installs, [])
         self.assertFalse(self.app.destroyed)
 
     def test_button_reports_up_to_date(self):
