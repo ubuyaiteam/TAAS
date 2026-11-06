@@ -15,7 +15,7 @@ Tick each line. Write down anything that fails, with the message shown on screen
 | --- | --- | --- | --- | --- |
 | B1 | Sign-in | Sign in, close the app, open it again | No new sign-in needed; posting still works | [ ] |
 | B2 | Sign-in | Remove TAAS access in your Google account, then post | A message asks you to sign in again | [ ] |
-| B3 | Input | Try 1 address, 4 addresses, a bad address, 4 keywords, 11 keywords | Each is blocked with a clear message | [ ] |
+| B3 | Input | Try 1 valid address, 6 addresses, a bad address, 4 keywords, 11 keywords | One address is accepted; each invalid input is blocked with a clear message | [ ] |
 | B4 | Pages | Use a normal page, a page that blocks tools, a page that needs JavaScript, a made-up address | Details appear, or you are asked to type them | [ ] |
 | B5 | Details | Correct the brand, category and country | Your corrections are kept when you press Back and forward | [ ] |
 | B6 | Article | Write 5 articles from different inputs | Each has 300-400 words, every keyword, exactly one link per address, no brand or domain name | [ ] |

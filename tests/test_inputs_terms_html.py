@@ -9,9 +9,16 @@ class InputTests(unittest.TestCase):
     def test_urls_ok(self):
         self.assertEqual(inputs.validate_urls([" https://a.com/x ", "http://b.com", ""]), ["https://a.com/x", "http://b.com"])
 
+    def test_one_url_is_enough(self):
+        self.assertEqual(inputs.validate_urls(["https://a.com"]), ["https://a.com"])
+
+    def test_up_to_five_urls_are_allowed(self):
+        urls = [f"https://site{i}.com" for i in range(5)]
+        self.assertEqual(inputs.validate_urls(urls), urls)
+
     def test_url_count_and_format(self):
-        for bad in (["https://a.com"], ["https://a.com"] * 1 + ["a.com"], ["ftp://a.com", "https://b.com"],
-                    ["https://a.com", "https://b.com", "https://c.com", "https://d.com"]):
+        for bad in (["https://a.com", "a.com"], ["ftp://a.com", "https://b.com"],
+                    [f"https://site{i}.com" for i in range(6)]):
             with self.assertRaises(ValidationError):
                 inputs.validate_urls(bad)
 

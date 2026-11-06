@@ -5,7 +5,6 @@ from unittest import mock  # replace a value during one test
 from taas import updates  # the update settings
 from tests.test_ui_smoke import UiBase, find, labels, pump, ui  # the screen test setup (also loads the stand-in toolkit)
 from tests.helpers import sample_links  # sample links
-from taas.article import Link  # one link
 from taas.checks import run_checks  # automatic checks
 from taas.editor import html_to_text, make_image_line, text_to_html  # editable text
 from taas.errors import UpdateError, ValidationError  # our error types
@@ -75,7 +74,7 @@ class ImageHtmlTests(unittest.TestCase):
         self.assertTrue(any("picture description" in p for p in report.problems))
 
     def test_the_picture_address_may_hold_a_brand_like_a_link_address_may(self):
-        html, _ = self.convert(f"## A\n\n[great deals] [buying guide]\n\n{{image: https://acme.example/a.jpg | A desk}}")
+        html, _ = self.convert("## A\n\n[great deals] [buying guide]\n\n{image: https://acme.example/a.jpg | A desk}")
         report = run_checks(html, "T", [], self.links, ["Acme"], 1, 1000)
         self.assertFalse(any("Acme" in p for p in report.problems))
 

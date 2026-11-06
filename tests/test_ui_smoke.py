@@ -7,12 +7,13 @@ import json  # write JSON
 import sys  # replace a module
 import time  # wait for background jobs
 import unittest  # test tools
+from unittest import mock  # replace browser opening during a test
 
 from tests import stub_ctk, test_workflow as tw  # the stand-in toolkit and the workflow test setup
 from tests.helpers import KEYWORDS, URLS, reply  # test helpers
 
 sys.modules["customtkinter"] = stub_ctk  # the app now uses the stand-in
-from taas.errors import BloggerError  # our error types
+from taas.errors import AuthRequiredError, BloggerError  # our error types
 from taas.ui import app as ui  # the screens being tested
 
 
@@ -61,6 +62,9 @@ class UiBase(tw.WorkflowBase):
     def screen_name(self):
         return type(self.app.screen).__name__
 
+    def set_keywords(self, screen, keywords):
+        self.assertTrue(screen.add_keyword_values(keywords))
+
     # Do Setup through the screen
     def do_setup(self):
         s = self.app.screen
@@ -74,7 +78,7 @@ class UiBase(tw.WorkflowBase):
         self.click("+ Add another URL")
         s.urls[0].insert(0, URLS[0])
         s.urls[1].insert(0, URLS[1])
-        s.keywords.insert("1.0", "\n".join(KEYWORDS))
+        self.set_keywords(s, "\n".join(KEYWORDS))
         self.gem.replies += [tw.DETECT, tw.DETECT]
         self.click("Read my pages")
         self.assertEqual(self.screen_name(), "DetailsScreen")
@@ -92,12 +96,81 @@ class SetupFlowTests(UiBase):
         self.assertEqual(self.wf.settings.blog_id, "111")
         self.assertEqual(self.wf.settings.gemini_api_key, "KEY")
 
+    def test_failed_sign_in_offers_retry_and_retry_can_succeed(self):
+        attempts = []
+
+        def sign_in(client, store, open_browser=None):
+            attempts.append(True)
+            if len(attempts) == 1:
+                raise AuthRequiredError("Sign-in did not finish within 180 seconds.")
+            store.save({"access_token": "a", "refresh_token": "r"})
+
+        self.wf._sign_in = sign_in
+        self.click("Sign in with Google")
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(self.questions[0][0], "Login failed")
+        self.assertIn("Would you like to try signing in again?", self.questions[0][1])
+        self.assertTrue(self.wf.is_signed_in())
+
+    def test_failed_sign_in_can_be_cancelled(self):
+        def fail_sign_in(client, store, open_browser=None):
+            raise AuthRequiredError("Sign-in timed out.")
+
+        self.wf._sign_in = fail_sign_in
+        self.answer = False
+        self.click("Sign in with Google")
+        self.assertEqual(len(self.questions), 1)
+        self.assertFalse(self.wf.is_signed_in())
+        self.assertIn("Sign-in timed out.", " ".join(labels(self.app)))
+
+    def test_markets_lists_countries_with_two_disabled_placeholders(self):
+        self.click("Markets")
+        screen = self.app.screen
+        self.assertEqual(self.screen_name(), "MarketsScreen")
+        self.assertEqual(list(screen.country_menu.kw["values"]), list(ui.MARKET_COUNTRIES))
+        self.assertEqual(len(ui.MARKET_COUNTRIES), 32)
+        screen.country_menu.choose("New Zealand")
+        self.assertEqual(screen.country_label.kw["text"], "New Zealand")
+        self.assertEqual(screen.website_one.kw["text"], "Website 1 (coming soon)")
+        self.assertEqual(screen.website_two.kw["text"], "Website 2 (coming soon)")
+        self.assertEqual(screen.website_one.kw["state"], "disabled")
+        self.assertEqual(screen.website_two.kw["state"], "disabled")
+        screen.country_menu._open_dropdown_menu()
+        popup = screen.country_menu.country_popup
+        self.assertEqual(popup.geometry_value.split("+", 1)[0], "280x340")
+        self.assertIn("<Escape>", popup.bindings)
+        self.assertNotIn("<FocusOut>", popup.bindings)
+        self.assertFalse(popup.destroyed)
+        scroll_list = next(child for child in popup.children if type(child).__name__ == "CTkScrollableFrame")
+        self.assertEqual(len([child for child in scroll_list.children if type(child).__name__ == "CTkButton"]), 32)
+        next(child for child in scroll_list.children if child.kw.get("text") == "Canada").invoke()
+        self.assertTrue(popup.destroyed)
+        self.assertEqual(screen.country_menu.get(), "Canada")
+        self.assertEqual(screen.country_label.kw["text"], "Canada")
+
     def test_blog_selector_uses_themed_dropdown(self):
         selector = self.app.screen.blog_menu
         self.assertEqual(type(selector).__name__, "CTkOptionMenu")
         self.assertEqual(selector.cget("fg_color"), ui.FIELD_BG)
         self.assertEqual(selector.cget("button_color"), ui.ACCENT)
         self.assertEqual(selector.cget("dropdown_hover_color"), ui.ACCENT_SOFT)
+
+    def test_open_blog_is_disabled_until_a_loaded_blog_is_selected(self):
+        screen = self.app.screen
+        self.assertEqual(screen.open_blog_button.kw["state"], "disabled")
+        with mock.patch.object(ui.webbrowser, "open") as open_browser:
+            screen.open_blog_button.invoke()
+            open_browser.assert_not_called()
+
+            screen.after_blogs("ok", [
+                tw.Blog("111", "First blog", "https://first.blogspot.com/"),
+                tw.Blog("222", "Second blog", "https://second.blogspot.com/"),
+            ])
+            self.assertEqual(screen.open_blog_button.kw["state"], "disabled")
+            screen.blog_menu.choose("Second blog (https://second.blogspot.com/)")
+            self.assertEqual(screen.open_blog_button.kw["state"], "normal")
+            screen.open_blog_button.invoke()
+            open_browser.assert_called_once_with("https://second.blogspot.com/")
 
     def test_provider_dropdown_saves_openai_credentials(self):
         screen = self.app.screen
@@ -159,12 +232,46 @@ class SetupFlowTests(UiBase):
 
 
 class WholeFlowTests(UiBase):
+    def test_seed_generates_editable_keyword_chips(self):
+        screen = self.app.screen
+        self.assertEqual(screen.generate_keywords_button.kw["state"], "disabled")
+        self.assertEqual(screen.read_button.kw["state"], "disabled")
+
+        screen.keyword_seed.insert(0, "diwali sale")
+        screen.update_keyword_controls()
+        self.assertEqual(screen.generate_keywords_button.kw["state"], "normal")
+        with mock.patch.object(
+            self.wf, "suggest_keywords",
+            return_value=[
+                "diwali sale offers", "diwali sale deals", "diwali sale 2026",
+                "best diwali sale", "diwali sale online",
+            ],
+        ) as suggest:
+            self.click("Generate keywords")
+        suggest.assert_called_once_with("diwali sale")
+        self.assertEqual(len(screen.selected_keywords), 5)
+        self.assertEqual(screen.read_button.kw["state"], "normal")
+
+        first_remove = next(
+            widget for widget in screen.keyword_chip_rows[0].descendants()
+            if type(widget).__name__ == "CTkButton" and widget.kw.get("text") == "×"
+        )
+        first_remove.invoke()
+        self.assertEqual(len(screen.selected_keywords), 4)
+        self.assertEqual(screen.read_button.kw["state"], "disabled")
+
+        screen.manual_keywords.insert(0, "Diwali sale offers, extra deals, Diwali 2026")
+        self.click("Add")
+        self.assertEqual(len(screen.selected_keywords), 7)
+        self.assertEqual(screen.selected_keywords[-3:], ["Diwali sale offers", "extra deals", "Diwali 2026"])
+        self.assertEqual(screen.read_button.kw["state"], "normal")
     def setUp(self):
         super().setUp()
         self.do_setup()
 
     def test_input_errors_stay_on_the_input_screen(self):
         s = self.app.screen
+        self.set_keywords(s, KEYWORDS)
         s.urls[0].insert(0, "not a web address")
         self.click("Read my pages")
         self.assertEqual(self.screen_name(), "InputScreen")
@@ -177,17 +284,21 @@ class WholeFlowTests(UiBase):
         self.assertEqual(len(s.urls), 2)
         self.click("+ Add another URL")
         self.assertEqual(len(s.urls), 3)
+        self.click("+ Add another URL")
+        self.assertEqual(len(s.urls), 4)
+        self.click("+ Add another URL")
+        self.assertEqual(len(s.urls), 5)
         self.assertEqual(s.add_url_button.kw["state"], "disabled")
         self.assertEqual(s.add_url_button.kw["text"], f"Maximum of {ui.MAX_URLS} URLs added")
         s.on_add_url()
-        self.assertEqual(len(s.urls), 3)
+        self.assertEqual(len(s.urls), 5)
 
     def test_details_are_prefilled_and_editable(self):
         s = self.app.screen
         self.click("+ Add another URL")
         s.urls[0].insert(0, URLS[0])
         s.urls[1].insert(0, URLS[1])
-        s.keywords.insert("1.0", ", ".join(KEYWORDS))
+        self.set_keywords(s, ", ".join(KEYWORDS))
         self.gem.replies += [tw.DETECT, tw.DETECT]
         self.click("Read my pages")
         d = self.app.screen
@@ -218,7 +329,7 @@ class WholeFlowTests(UiBase):
         self.click("+ Add another URL")
         s.urls[0].insert(0, URLS[0])
         s.urls[1].insert(0, URLS[1])
-        s.keywords.insert("1.0", ", ".join(KEYWORDS))
+        self.set_keywords(s, ", ".join(KEYWORDS))
         self.gem.replies += [tw.DETECT, tw.DETECT]
         self.click("Read my pages")
         d = self.app.screen
@@ -238,12 +349,36 @@ class WholeFlowTests(UiBase):
         self.click("Back")
         self.assertEqual(self.app.draft.text, "My edited text")
 
+    def test_sidebar_navigates_to_available_steps_and_keeps_edits(self):
+        self.to_article()
+        article = self.app.screen
+        article.title_entry.delete(0, "end")
+        article.title_entry.insert(0, "Edited title")
+        article.body.delete("1.0", "end")
+        article.body.insert("1.0", "Edited article text")
+
+        self.app.step_rows[0][0].bindings["<Button-1>"](None)
+        self.assertEqual(self.screen_name(), "InputScreen")
+        self.app.screen.urls[0].delete(0, "end")
+        self.app.screen.urls[0].insert(0, "https://changed.example.com/item")
+
+        self.app.step_rows[2][0].bindings["<Button-1>"](None)
+        self.assertEqual(self.screen_name(), "ArticleScreen")
+        self.assertEqual(self.app.last_input[0][0], "https://changed.example.com/item")
+        self.assertEqual(self.app.screen.title_entry.get(), "Edited title")
+        self.assertEqual(self.app.screen.body.get("1.0", "end").strip(), "Edited article text")
+
+        self.app.step_rows[1][0].bindings["<Button-1>"](None)
+        self.assertEqual(self.screen_name(), "DetailsScreen")
+        self.assertEqual(self.app.draft.title, "Edited title")
+        self.assertEqual(self.app.draft.text, "Edited article text")
+
     def test_back_button_keeps_what_was_typed(self):
         s = self.app.screen
         self.click("+ Add another URL")
         s.urls[0].insert(0, URLS[0])
         s.urls[1].insert(0, URLS[1])
-        s.keywords.insert("1.0", ", ".join(KEYWORDS))
+        self.set_keywords(s, ", ".join(KEYWORDS))
         self.gem.replies += [tw.DETECT, tw.DETECT]
         self.click("Read my pages")
         self.click("Back")

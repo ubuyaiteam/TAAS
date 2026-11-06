@@ -11,11 +11,19 @@ class _Font:
         self.kw = kwargs
 
 
+class CTkImage:
+    def __init__(self, light_image=None, dark_image=None, size=None):
+        self.light_image = light_image
+        self.dark_image = dark_image
+        self.size = size
+
+
 class Widget:
     def __init__(self, master=None, *args, **kwargs):
         self.master = master
         self.kw = dict(kwargs)
         self.children = []
+        self.bindings = {}
         self.destroyed = False
         if isinstance(master, Widget):
             master.children.append(self)
@@ -37,6 +45,8 @@ class Widget:
         return None
 
     def bind(self, *a, **k):
+        if a:
+            self.bindings[a[0]] = a[1] if len(a) > 1 else None
         return None
 
     def configure(self, **kwargs):
@@ -63,6 +73,51 @@ class Widget:
     def after(self, ms, func=None, *args):
         self.root().afters.append(func)
 
+    def winfo_toplevel(self):
+        return self.root()
+
+    def winfo_rootx(self):
+        return 0
+
+    def winfo_rooty(self):
+        return 0
+
+    def winfo_width(self):
+        return self.kw.get("width", 280)
+
+    def winfo_height(self):
+        return self.kw.get("height", 38)
+
+    def winfo_screenheight(self):
+        return 768
+
+    def winfo_screenwidth(self):
+        return 1366
+
+    def _apply_widget_scaling(self, value):
+        return value
+
+    def winfo_exists(self):
+        return not self.destroyed
+
+    def withdraw(self):
+        self.withdrawn = True
+
+    def deiconify(self):
+        self.withdrawn = False
+
+    def overrideredirect(self, value):
+        self.overrideredirect_value = value
+
+    def transient(self, parent=None):
+        self.transient_parent = parent
+
+    def focus_force(self):
+        pass
+
+    def geometry(self, value):
+        self.geometry_value = value
+
     def descendants(self):
         for child in self.children:
             if not child.destroyed:
@@ -73,10 +128,13 @@ class Widget:
 class CTk(Widget):
     def __init__(self, *a, **k):
         super().__init__(None)
-        self.afters, self.titles, self.clipboard = [], [], ""
+        self.afters, self.titles, self.clipboard, self.icons = [], [], "", []
 
     def title(self, text):
         self.titles.append(text)
+
+    def iconbitmap(self, default=None, bitmap=None):
+        self.icons.append(default or bitmap)
 
     def geometry(self, *a):
         pass
@@ -92,6 +150,10 @@ class CTk(Widget):
 
     def clipboard_append(self, text):
         self.clipboard += text
+
+
+class CTkToplevel(Widget):
+    pass
 
 
 class CTkFrame(Widget):
@@ -145,7 +207,9 @@ class CTkTextbox(Widget):
 class CTkOptionMenu(Widget):
     def __init__(self, *a, **k):
         super().__init__(*a, **k)
-        values = self.kw.get("values") or [""]
+        self._values = self.kw.get("values") or [""]
+        self._command = self.kw.get("command")
+        values = self._values
         self._value = values[0]
 
     def set(self, value):
@@ -158,6 +222,11 @@ class CTkOptionMenu(Widget):
         self._value = value
         if self.kw.get("command"):
             self.kw["command"](value)
+
+    def _dropdown_callback(self, value):
+        self._value = value
+        if self._command:
+            self._command(value)
 
 
 class CTkComboBox(CTkOptionMenu):

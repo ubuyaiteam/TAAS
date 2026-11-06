@@ -21,11 +21,8 @@ jobs:
       - name: Run the tests
         run: python -m unittest discover -s tests -t .
 
-      - name: Make the icon
-        run: python make_icon.py
-
       - name: Build TAAS.exe
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas.ico --collect-all customtkinter run_taas.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name TAAS --icon assets/taas-logo.ico --add-data "assets/taas-logo.ico;assets" --collect-all customtkinter run_taas.py
 
       - name: Make the release folder
         shell: pwsh

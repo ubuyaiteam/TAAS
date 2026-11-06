@@ -5,7 +5,7 @@ from urllib.parse import urlparse  # read web addresses
 
 from .errors import ValidationError  # our error types
 
-MIN_URLS, MAX_URLS = 2, 3  # links allowed per article
+MIN_URLS, MAX_URLS = 1, 5  # links allowed per article
 MIN_KEYWORDS, MAX_KEYWORDS = 5, 10  # keywords allowed per article
 
 
@@ -20,7 +20,7 @@ def normalize_url(raw):
     return url
 
 
-# Check the list of web addresses (2-3, no repeats)
+# Check the list of web addresses (1-5, no repeats)
 def validate_urls(raw_urls):
     urls = [normalize_url(u) for u in raw_urls if u and u.strip()]
     if not MIN_URLS <= len(urls) <= MAX_URLS:

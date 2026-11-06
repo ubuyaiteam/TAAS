@@ -6,7 +6,7 @@ from pathlib import Path  # file paths
 from taas import article, editor, safeguards  # the code being tested
 from taas.errors import ValidationError  # our error types
 
-from tests.helpers import KEYWORDS, URLS, make_body, sample_links  # test helpers
+from tests.helpers import URLS, make_body, sample_links  # test helpers
 
 
 # Tests for the editable text

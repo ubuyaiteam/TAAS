@@ -4,7 +4,7 @@
     python phase1_check.py --live             # publish the test post
     python phase1_check.py --switch-account   # use another Google account
     python phase1_check.py --link "great deals=https://example.com/a" --link "buy now=https://example.com/b"
-                                              # test post with 1-3 links (anchor text=web address)
+                                              # test post with 1-5 links (anchor text=web address)
 """
 
 import argparse  # read command options
@@ -19,8 +19,8 @@ from taas.errors import TaasError, ValidationError  # our error types
 
 # Read "anchor text=web address" options into (anchor, url) pairs
 def parse_links(raw_links):
-    if not 1 <= len(raw_links) <= 3:
-        raise ValidationError("Use 1 to 3 --link options.")
+    if not 1 <= len(raw_links) <= 5:
+        raise ValidationError("Use 1 to 5 --link options.")
     links = []
     for raw in raw_links:
         # split at the FIRST "=", because web addresses can contain "=" too
@@ -67,7 +67,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--link", action="append", metavar="ANCHOR=URL",
-        help="add a link to the test post (use 1 to 3 times)",
+        help="add a link to the test post (use 1 to 5 times)",
     )
     args = parser.parse_args()
 

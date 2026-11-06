@@ -7,8 +7,9 @@ import hashlib  # make SHA-256 hashes
 import json  # read and write JSON files
 import os  # system and file-permission tools
 import secrets  # make random values
+import shutil  # find Google Chrome
+import subprocess  # open an isolated browser window
 import time  # clock, for token expiry
-import webbrowser  # open the browser
 from dataclasses import dataclass  # simple data classes
 from http.server import BaseHTTPRequestHandler, HTTPServer  # small local web server
 from pathlib import Path  # file paths
@@ -23,6 +24,38 @@ BLOGGER_SCOPE = "https://www.googleapis.com/auth/blogger"  # permission we ask G
 DEFAULT_AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"  # Google's sign-in page
 DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token"  # Google's token page
 EXPIRY_MARGIN_SECONDS = 60  # refresh the token 60 s before it ends
+SIGN_IN_TIMEOUT_SECONDS = 180
+
+
+def _find_chrome() -> Optional[Path]:
+    for command in ("chrome.exe", "chrome"):
+        located = shutil.which(command)
+        if located:
+            return Path(located)
+
+    for variable in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+        root = os.environ.get(variable)
+        if root:
+            candidate = Path(root) / "Google" / "Chrome" / "Application" / "chrome.exe"
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def open_chrome_incognito(url: str) -> None:
+    """Open sign-in without reusing the active Chrome profile's cookies."""
+    chrome = _find_chrome()
+    if chrome is None:
+        raise AuthRequiredError(
+            "Google sign-in requires Google Chrome. Install Chrome, then try again. "
+            "TAAS did not open the default browser to avoid reusing its saved profile."
+        )
+    try:
+        subprocess.Popen([str(chrome), "--incognito", url])
+    except OSError as error:
+        raise AuthRequiredError(
+            f"Could not open Google Chrome in Incognito mode: {error}"
+        ) from error
 
 
 # Google client details
@@ -233,8 +266,8 @@ def _with_expiry(body: dict, previous: Optional[dict], now: float) -> dict:
 def sign_in(
     client: ClientConfig,
     store: TokenStore,
-    open_browser: Callable[[str], object] = webbrowser.open,
-    timeout: float = 180,
+    open_browser: Callable[[str], object] = open_chrome_incognito,
+    timeout: float = SIGN_IN_TIMEOUT_SECONDS,
     http=requests,
     now: Callable[[], float] = time.time,
 ) -> dict:
@@ -258,7 +291,10 @@ def sign_in(
         server.server_close()
 
     if result is None:
-        raise AuthRequiredError("Sign-in timed out. Please try again.")
+        raise AuthRequiredError(
+            f"Sign-in did not finish within {timeout:g} seconds. "
+            "If you closed the browser tab, login was not completed."
+        )
     if result.get("error"):
         raise AuthRequiredError(
             f"Google sign-in was cancelled or refused ({result['error']})."

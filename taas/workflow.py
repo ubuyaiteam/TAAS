@@ -14,9 +14,11 @@ from typing import List  # type hints
 from . import __version__, config, updates  # settings, app version, update check
 from .anchors import choose_anchors  # pick link keywords
 from .article import ArticleRequest, Link, generate_article  # write the article
-from .auth import GoogleAuth, TokenStore, load_client_config, sign_in  # Google sign-in
+from .auth import GoogleAuth, TokenStore, load_client_config, open_chrome_incognito, sign_in  # Google sign-in
 from .blogger import BloggerClient  # Blogger
 from .checks import CheckReport, run_checks  # automatic checks
+from . import cloudinary_upload  # upload a picture to Cloudinary
+from . import keyword_suggestions
 from .detect import analyze_urls, summarize  # find brand, category, country
 from .editor import html_to_text, make_image_line, swap_anchor, text_to_html  # editable text
 from .errors import ConfigError, ValidationError  # our error types
@@ -84,8 +86,8 @@ class Workflow:
     """All actions the screens can ask for."""
 
     def __init__(self, gemini_factory=None, blogger_factory=None, reader=read_page,
-                 sign_in_fn=sign_in, now=time.time, rng=None, open_browser=webbrowser.open,
-                 update_check=updates.check_for_update):
+                 sign_in_fn=sign_in, now=time.time, rng=None, open_browser=None,
+                 update_check=updates.check_for_update, open_auth_browser=None):
         # the "factory" and "fn" arguments let tests replace the real services
         self.settings = config.load_settings()
         self.store = TokenStore(config.token_path())
@@ -96,7 +98,8 @@ class Workflow:
         self._sign_in = sign_in_fn
         self.now = now
         self.rng = rng
-        self.open_browser = open_browser
+        self.open_browser = open_browser or webbrowser.open
+        self.open_auth_browser = open_auth_browser or open_browser or open_chrome_incognito
         self._update_check = update_check
 
     # ---------------------------------------------------------- settings
@@ -187,7 +190,7 @@ class Workflow:
     # Open the browser and sign in
     def sign_in(self):
         client = load_client_config(self.settings.client_secret_path())
-        self._sign_in(client, self.store, open_browser=self.open_browser)
+        self._sign_in(client, self.store, open_browser=self.open_auth_browser)
 
     # Forget the account (and the chosen blog)
     def sign_out(self):
@@ -233,6 +236,9 @@ class Workflow:
         analyses = analyze_urls(urls, gemini, reader=self.reader)
         category, country, brands = summarize(analyses)
         return Analysis(urls, keywords, analyses, category, country, brands)
+
+    def suggest_keywords(self, seed):
+        return keyword_suggestions.suggest_keywords(seed)
 
     # ----------------------------------------------- step 2: write article
 
@@ -315,6 +321,10 @@ class Workflow:
     @staticmethod
     def image_line(url, alt=""):
         return make_image_line(url, alt)
+
+    # Upload a picture file to Cloudinary; returns its secure web address
+    def upload_image(self, path):
+        return cloudinary_upload.upload_image(path)
 
     # Things the user should know before posting
     def warnings_before_post(self, draft, title, text):

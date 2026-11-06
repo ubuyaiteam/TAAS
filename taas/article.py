@@ -50,7 +50,7 @@ class Link:
 @dataclass
 class ArticleRequest:
     keywords: List[str]  # 5-10 keywords
-    links: List[Link]  # 2-3 links
+    links: List[Link]  # 1-5 links
     category: str  # what the pages are about
     country: str  # reader's country
     page_notes: List[str] = field(default_factory=list)  # short notes on each page

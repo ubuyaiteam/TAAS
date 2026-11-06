@@ -115,9 +115,13 @@ class RequestTests(unittest.TestCase):
         article.validate_request(req)
         self.assertEqual(req.links[0].anchor, "great deals")  # the keyword exactly as typed
 
+    def test_request_with_one_link_is_valid(self):
+        req = request(links=[article.Link(URLS[0], "GREAT DEALS")])
+        article.validate_request(req)
+        self.assertEqual(req.links[0].anchor, "great deals")
+
     def test_bad_requests(self):
         cases = [
-            request(links=sample_links()[:1]),
             request(links=[article.Link(URLS[0], "not a keyword"), article.Link(URLS[1], "buying guide")]),
             request(links=[article.Link(URLS[0], "great deals"), article.Link(URLS[1], "Great Deals")]),
             request(links=[article.Link("nope", "great deals"), article.Link(URLS[1], "buying guide")]),

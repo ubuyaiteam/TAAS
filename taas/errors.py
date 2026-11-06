@@ -29,6 +29,10 @@ class PageReadError(TaasError):
     """A web page could not be read."""
 
 
+class PageBlockedError(PageReadError):
+    """The website refused the automatic reader (HTTP 401, 403 or 429)."""
+
+
 class GeminiError(TaasError):
     """Gemini failed or gave a bad answer."""
 
@@ -39,3 +43,7 @@ class OpenAIError(TaasError):
 
 class UpdateError(TaasError):
     """The check for a new version failed."""
+
+
+class CloudinaryError(TaasError):
+    """Uploading a picture to Cloudinary failed."""

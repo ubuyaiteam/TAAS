@@ -5,6 +5,7 @@ import tempfile  # temporary files and folders for tests
 import threading  # run a task in the background
 import unittest  # test tools
 from pathlib import Path  # file paths
+from unittest.mock import patch  # replace the browser launcher in tests
 from urllib.parse import parse_qs, urlparse  # read and build web links
 
 import requests  # send web requests
@@ -126,6 +127,22 @@ class TokenStoreTests(unittest.TestCase):
             self.assertIsNone(auth.TokenStore(p).load())
 
 
+class BrowserLaunchTests(unittest.TestCase):
+    def test_opens_chrome_in_incognito_mode(self):
+        chrome = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
+        with patch.object(auth, "_find_chrome", return_value=chrome):
+            with patch.object(auth.subprocess, "Popen") as launch:
+                auth.open_chrome_incognito("https://accounts.google.com/signin")
+        launch.assert_called_once_with([
+            str(chrome), "--incognito", "https://accounts.google.com/signin",
+        ])
+
+    def test_missing_chrome_does_not_open_the_default_browser(self):
+        with patch.object(auth, "_find_chrome", return_value=None):
+            with self.assertRaisesRegex(AuthRequiredError, "requires Google Chrome"):
+                auth.open_chrome_incognito("https://accounts.google.com/signin")
+
+
 # Tests for the sign-in steps
 class SignInTests(unittest.TestCase):
     """Real local page. Fake browser and fake Google."""
@@ -180,7 +197,7 @@ class SignInTests(unittest.TestCase):
     def test_timeout_when_browser_never_returns(self):
         with tempfile.TemporaryDirectory() as d:
             store = auth.TokenStore(Path(d) / "token.json")
-            with self.assertRaises(AuthRequiredError):
+            with self.assertRaisesRegex(AuthRequiredError, "closed the browser tab"):
                 auth.sign_in(CLIENT, store, open_browser=lambda u: None,
                              timeout=1, http=FakeHttp())
 

@@ -19,11 +19,11 @@ class LinkOptionTests(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 check.parse_links(bad)
 
-    def test_link_count_must_be_1_to_3(self):
+    def test_link_count_must_be_1_to_5(self):
         with self.assertRaises(ValidationError):
             check.parse_links([])
         with self.assertRaises(ValidationError):
-            check.parse_links(["a=https://a.com"] * 4)
+            check.parse_links(["a=https://a.com"] * 6)
 
 
 # Tests for the test-post HTML

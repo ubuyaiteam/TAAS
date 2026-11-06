@@ -1,10 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+datas = [
+    ('assets/taas-logo.ico', 'assets'),
+    ('assets/sidebar_moon_light.png', 'assets'),
+    ('assets/sidebar_moon_dark.png', 'assets'),
+    ('assets/sidebar_sun_light.png', 'assets'),
+    ('assets/sidebar_sun_dark.png', 'assets'),
+    ('assets/sidebar_update_light.png', 'assets'),
+    ('assets/sidebar_update_dark.png', 'assets'),
+    ('assets/sidebar_settings_light.png', 'assets'),
+    ('assets/sidebar_settings_dark.png', 'assets'),
+]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('customtkinter')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('cloudinary')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('playwright')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
@@ -42,4 +56,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assets/taas-logo.ico'],
 )

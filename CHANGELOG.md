@@ -3,6 +3,7 @@
 Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; this file is for people.
 
 ## Unreleased
+- When a website refuses the page reader (HTTP 401, 403 or 429), TAAS now retries once in a hidden Google Chrome or Microsoft Edge window (Playwright). If that also fails, the original message is shown with the reason. Add `BROWSER_VISIBLE=1` to the `.env` file next to the app to show the browser window instead of hiding it (some websites block hidden browsers).
 
 ## 1.2.1
 - Update checks now download, verify and install the Windows executable, then restart TAAS after confirmation.

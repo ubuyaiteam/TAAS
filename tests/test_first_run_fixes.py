@@ -1,6 +1,5 @@
 """Tests for the fixes made after the first real run on a Windows PC."""
 
-import json  # write JSON
 import unittest  # test tools
 
 from taas import pagereader  # the code being tested
@@ -103,7 +102,7 @@ class NoteScreenTests(ts.UiBase):
         self.click("+ Add another URL")
         s.urls[0].insert(0, URLS[0])
         s.urls[1].insert(0, URLS[1])
-        s.keywords.insert("1.0", "\n".join(KEYWORDS))
+        self.set_keywords(s, "\n".join(KEYWORDS))
         self.gem.replies += [tw.DETECT, tw.DETECT]
         self.click("Read my pages")
         d = self.app.screen

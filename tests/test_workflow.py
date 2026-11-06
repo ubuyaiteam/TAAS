@@ -148,7 +148,8 @@ class SetupTests(WorkflowBase):
 class WriteTests(WorkflowBase):
     def test_bad_input_stops_before_gemini(self):
         self.ready()
-        for urls, kws in ((["https://a.com"], "a,b,c,d,e"), (list(URLS), "a,b")):
+        too_many = [f"https://site{i}.com" for i in range(6)]  # the app accepts 1 to 5 addresses
+        for urls, kws in (([], "a,b,c,d,e"), (too_many, "a,b,c,d,e"), (list(URLS), "a,b")):
             with self.assertRaises(ValidationError):
                 self.wf.analyze(urls, kws)
         self.assertEqual(self.gem.calls, [])

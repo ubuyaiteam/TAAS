@@ -6,8 +6,12 @@ import unittest  # test tools
 from pathlib import Path  # file paths
 
 ROOT = Path(__file__).resolve().parent.parent  # the project folder
-LOCAL = {"taas", "tests", "phase1_check", "phase23_check", "run_taas", "release", "make_icon"}  # our own modules
-PACKAGE_OF = {"bs4": "beautifulsoup4", "dotenv": "python-dotenv", "PIL": "pillow"}  # import name -> package name
+LOCAL = {"taas", "tests", "phase1_check", "phase23_check", "run_taas", "release"}  # our own modules
+PACKAGE_OF = {
+    "bs4": "beautifulsoup4",
+    "dotenv": "python-dotenv",
+    "PIL": "pillow",
+}  # import name -> package name
 
 
 # Names of the libraries listed in requirements.txt

@@ -8,7 +8,7 @@ from urllib.parse import urlparse  # read web addresses
 import requests  # send web requests
 from bs4 import BeautifulSoup  # read HTML
 
-from .errors import PageReadError  # our error types
+from .errors import PageBlockedError, PageReadError  # our error types
 
 USER_AGENT = "Mozilla/5.0 (compatible; TAAS-reader/1.0)"  # how we introduce ourselves to websites
 FETCH_TIMEOUT = 20  # seconds to wait for a page
@@ -51,7 +51,7 @@ def fetch_page(url, http=requests):
 
     status = resp.status_code
     if status in (401, 403, 429):
-        raise PageReadError(
+        raise PageBlockedError(
             f"{url} does not allow automatic reading (HTTP {status}). "
             "If this is your own site, ask your web team to allow the reader named TAAS-reader."
         )
@@ -105,6 +105,18 @@ def extract_page(html_text, url):
     )
 
 
-# Download and read one page
-def read_page(url, http=requests):
-    return extract_page(fetch_page(url, http), url)
+# Download and read one page.
+# If the website refuses the automatic reader (HTTP 401, 403, 429), try once more in a real browser (Playwright).
+# browser_fetch can be replaced in tests; it takes a web address and returns the page's HTML.
+def read_page(url, http=requests, browser_fetch=None):
+    try:
+        html = fetch_page(url, http)
+    except PageBlockedError as blocked:
+        if browser_fetch is None:
+            from .browserfetch import fetch_html  # imported here so the browser code loads only when needed
+            browser_fetch = fetch_html
+        try:
+            html = browser_fetch(url)[:MAX_PAGE_CHARS]
+        except PageReadError as error:
+            raise PageReadError(f"{blocked} A browser retry did not work either: {error}")
+    return extract_page(html, url)

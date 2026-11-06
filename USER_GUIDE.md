@@ -11,17 +11,24 @@ and posts it to your Blogger blog. Nothing is posted until you confirm.
 ## First run: Setup screen
 1. Choose **Gemini** or **OpenAI** from the AI provider drop-down. Enter that provider's API key and model
    (the default model is prefilled). Click **Save settings**.
-2. Click **Sign in with Google**. Your browser opens. Choose your account and allow access.
-   TAAS never sees your Google password.
+2. Click **Sign in with Google**. Google opens in a Chrome Incognito window, separate from the active
+   Chrome profile's saved sign-in. Choose the account you want and allow access. TAAS never sees your
+   Google password. If you close the tab or sign-in fails, TAAS reports the failure and offers to retry
+   (the sign-in attempt times out after 180 seconds).
 3. Click **Load my blogs** and choose your blog.
 4. Click **Continue**.
 
 You can open Setup at any time with **Settings** at the bottom of the left sidebar.
 
+## Markets
+Open **Markets** in the sidebar and choose one of the listed countries to see its two planned website
+options. These are placeholders only and cannot publish yet; country-specific website names and publishing
+integrations still need to be configured.
+
 ## Writing an article
 **Step 1: Add pages.**
-The screen starts with one web address field. Click **+ Add another URL** to add more fields (up to 3 total); enter at least 2 addresses. A green **Looks good** appears when one looks right; each address must start with `http://` or `https://`. Each address becomes one link.
-Enter 5 to 10 keywords, one per line or separated by commas. Click **Read my pages**.
+The screen starts with one required web address field. Click **+ Add another URL** to add optional fields (up to 5 total). A green **Looks good** appears when an address looks right; each address must start with `http://` or `https://`. Each address becomes one link.
+Enter one seed phrase and click **Generate keywords** to fetch Google autocomplete suggestions. Remove suggestions with **×**, or add your own as a comma-separated list. Select 5 to 10 keyword chips before clicking **Read my pages**. Suggestions require an internet connection and Google may limit availability.
 
 **Step 2: Check details.**
 TAAS shows the brand, category and country it found. Correct anything wrong. If a page could not be read,
@@ -76,6 +83,11 @@ manual download. Your settings and sign-in stay, because they are kept in `%APPD
 | Posting limit reached | Change the limit in Setup, or save as a draft. |
 
 ## Where TAAS keeps files
+Cloudinary image-upload credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET`) go in `.env` next to the app (the project folder when running from source).
+If a website refuses TAAS's page reader, TAAS retries in Google Chrome or Microsoft Edge, hidden. Add the line
+`BROWSER_VISIBLE=1` to that same `.env` file to show the browser window while it reads (remove the line to hide it again).
+
 Folder `%APPDATA%\TAAS` (type that in the Windows Explorer address bar):
 - `.env`: your selected provider, Gemini/OpenAI keys and settings (and, if your admin set them, `UPDATE_REPO` / `UPDATE_TOKEN` for update checks).
 - `token.json`: your Google sign-in token (not your password).

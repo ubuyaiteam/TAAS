@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="230" viewBox="0 0 520 230">
+  <rect width="520" height="230" rx="18" fill="#FFFDF7"/>
+  <text x="28" y="34" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">TAAS sidebar icon direction</text>
+
+  <g transform="translate(22 52)">
+    <rect width="476" height="46" rx="12" fill="#F5F1E5"/>
+    <circle cx="30" cy="23" r="15" fill="#FFFFFF"/>
+    <path d="M30 13a10 10 0 1 0 8 14A8 8 0 0 1 30 13Z" fill="#20243A"/>
+    <text x="58" y="29" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="15">Dark mode</text>
+  </g>
+
+  <g transform="translate(22 108)">
+    <rect width="476" height="46" rx="12" fill="#FFFFFF"/>
+    <circle cx="30" cy="23" r="15" fill="#F5F1E5"/>
+    <path d="M38 20a8.5 8.5 0 0 0-14.5-4.8M22 26a8.5 8.5 0 0 0 14.5 4.8" fill="none" stroke="#20243A" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="m21 12 .4 5 4.6-.7M39 34l-.4-5-4.6.7" fill="none" stroke="#FFB900" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="58" y="29" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="15">Check for updates</text>
+  </g>
+
+  <g transform="translate(22 164)">
+    <rect width="476" height="46" rx="12" fill="#FFFFFF"/>
+    <circle cx="30" cy="23" r="15" fill="#F5F1E5"/>
+    <path d="M28 12h4v3l2 .8 2.1-2.1 2.8 2.8-2.1 2.1.8 2h3v4h-3l-.8 2 2.1 2.1-2.8 2.8-2.1-2.1-2 .8v3h-4v-3l-2-.8-2.1 2.1-2.8-2.8 2.1-2.1-.8-2h-3v-4h3l.8-2-2.1-2.1 2.8-2.8 2.1 2.1 2-.8Z" fill="#20243A" stroke="#20243A" stroke-linejoin="round"/>
+    <circle cx="30" cy="23" r="4" fill="#FFFDF7"/>
+    <circle cx="30" cy="23" r="1.8" fill="#FFB900"/>
+    <text x="58" y="29" fill="#20243A" font-family="Segoe UI, Arial, sans-serif" font-size="15">Settings</text>
+  </g>
+</svg>

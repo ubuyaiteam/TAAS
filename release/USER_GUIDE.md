@@ -5,29 +5,37 @@ and posts it to your Blogger blog. Nothing is posted until you confirm.
 
 ## Before you start (once)
 1. Keep `TAAS.exe` and `client_secret.json` in the same folder. (Your admin gives you both.)
-2. You need your own **Gemini API key** and a **Google account that owns a Blogger blog**.
+2. You need an API key for **Gemini or OpenAI** and a **Google account that owns a Blogger blog**.
 3. Your Google address must be added as a test user by your admin (see GOOGLE_SETUP.md).
 
 ## First run: Setup screen
-1. Paste your Gemini API key. Leave the model as it is unless your admin says otherwise. Click **Save settings**.
-2. Click **Sign in with Google**. Your browser opens. Choose your account and allow access.
-   TAAS never sees your Google password.
+1. Choose **Gemini** or **OpenAI** from the AI provider drop-down. Enter that provider's API key and model
+   (the default model is prefilled). Click **Save settings**.
+2. Click **Sign in with Google**. Google opens in a Chrome Incognito window, separate from the active
+   Chrome profile's saved sign-in. Choose the account you want and allow access. TAAS never sees your
+   Google password. If you close the tab or sign-in fails, TAAS reports the failure and offers to retry
+   (the sign-in attempt times out after 180 seconds).
 3. Click **Load my blogs** and choose your blog.
 4. Click **Continue**.
 
-You can open Setup at any time with the **Setup** button (top right).
+You can open Setup at any time with **Settings** at the bottom of the left sidebar.
+
+## Markets
+Open **Markets** in the sidebar and choose one of the listed countries to see its two planned website
+options. These are placeholders only and cannot publish yet; country-specific website names and publishing
+integrations still need to be configured.
 
 ## Writing an article
-**Step 1: Addresses and keywords.**
-Enter 2 or 3 web addresses (each must start with `http://` or `https://`). Each address becomes one link.
-Enter 5 to 10 keywords, one per line or separated by commas. Click **Read the pages**.
+**Step 1: Add pages.**
+The screen starts with one required web address field. Click **+ Add another URL** to add optional fields (up to 5 total). A green **Looks good** appears when an address looks right; each address must start with `http://` or `https://`. Each address becomes one link.
+Enter one seed phrase and click **Generate keywords** to fetch Google autocomplete suggestions. Remove suggestions with **×**, or add your own as a comma-separated list. Select 5 to 10 keyword chips before clicking **Read my pages**. Suggestions require an internet connection and Google may limit availability.
 
-**Step 2: Check the details.**
+**Step 2: Check details.**
 TAAS shows the brand, category and country it found. Correct anything wrong. If a page could not be read,
 type the details yourself. Brand names are only used to keep them out of the article.
 Click **Write the article** (this takes a minute or two).
 
-**Step 3: Read, edit and post.**
+**Step 3: Review article.**
 - Read the article. Edit the title and text freely.
 - `[square brackets]` mark a link. Start a line with `##` for a subheading and with `-` for a list item.
   Leave an empty line between paragraphs.
@@ -43,13 +51,16 @@ Click **Write the article** (this takes a minute or two).
 - Under **Post to Blogger** choose **Save as Blogger draft** (safe) or **Publish live**,
   tick the confirmation box, then click **Post to Blogger**.
 
-**Step 4: Result.** You get the link to your post. Use **Copy link** or **Open in browser**.
+**Step 4: Publish.** You get the link to your post. Use **Copy link** or **Open in browser**.
 
 ## Updates
-The top bar shows the version you are running. When TAAS starts it quietly looks for a newer version, and shows
-**New version X is available** with an **Open download page** button if there is one. You can also click
-**Check for updates** at any time. To update, download the new `TAAS.exe` from the page that opens and replace the
-old one. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAAS`, not in the .exe.
+The sidebar shows the version you are running and which of the four steps you are on. **Dark mode** (bottom of the
+sidebar) switches to a dark look; TAAS starts light each time. When TAAS starts it quietly looks for a newer version, and shows
+**New version X is available** with an **Install update and restart** button if there is one. You can also click
+**Check for updates** at any time. Confirm the update to download and verify the new `TAAS.exe`; TAAS then replaces
+the running executable and restarts. Automatic updating requires the Windows app to be in a folder where your account
+can replace files. If installation fails, TAAS restores the previous executable and shows the release page for a
+manual download. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAAS`, not in the .exe.
 
 ## Good to know
 - Articles are about 300 to 400 words by default. Change this in Setup.
@@ -63,8 +74,8 @@ old one. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAA
 | --- | --- |
 | Google client file not found | Put `client_secret.json` next to `TAAS.exe`. |
 | Google access expired or was revoked. Please sign in again. | Open Setup and click **Use another Google account** or **Sign in with Google**. |
-| Gemini did not accept the API key | Check the key in Setup. |
-| The Gemini model ... was not found | Ask your admin for the right model name and enter it in Setup. |
+| Gemini or OpenAI did not accept the API key | Check the selected provider's key in Setup. |
+| The selected provider's model was not found | Ask your admin for the right model name and enter it in Setup. |
 | ... does not allow automatic reading (HTTP 403) | That website blocks tools. Type the details by hand. |
 | The article still has N check problem(s) | Read the list, fix the text, click **Check again**. You may still post. |
 | Update checking is not set up yet | Ask the person who maintains TAAS to set the GitHub repository (see RELEASING.md). |
@@ -72,8 +83,13 @@ old one. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAA
 | Posting limit reached | Change the limit in Setup, or save as a draft. |
 
 ## Where TAAS keeps files
+Cloudinary image-upload credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET`) go in `.env` next to the app (the project folder when running from source).
+If a website refuses TAAS's page reader, TAAS retries in Google Chrome or Microsoft Edge, hidden. Add the line
+`BROWSER_VISIBLE=1` to that same `.env` file to show the browser window while it reads (remove the line to hide it again).
+
 Folder `%APPDATA%\TAAS` (type that in the Windows Explorer address bar):
-- `.env`: your Gemini key and settings (and, if your admin set them, `UPDATE_REPO` / `UPDATE_TOKEN` for update checks).
+- `.env`: your selected provider, Gemini/OpenAI keys and settings (and, if your admin set them, `UPDATE_REPO` / `UPDATE_TOKEN` for update checks).
 - `token.json`: your Google sign-in token (not your password).
 - `post_log.json`: time, blog and addresses of recent posts, used for the limit and repeat warning. No article text.
 

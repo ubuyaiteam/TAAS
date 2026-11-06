@@ -10,14 +10,17 @@ Slow jobs run in a background thread, so the window never freezes.
 
 import queue  # hands results from the background job to the window
 import re  # a quick look at whether a typed address looks like a web address
+import sys  # locate bundled icon resources
 import threading  # run slow jobs in the background
 import webbrowser  # open web pages
+from pathlib import Path  # resolve the logo icon
 
 import customtkinter as ctk  # the screen toolkit
+from PIL import Image  # load the sidebar icon variants
 
 from ..errors import TaasError  # our error types
-from ..inputs import MAX_URLS, MIN_URLS  # the allowed number of page addresses
-from ..workflow import Workflow  # all the steps behind the screens
+from ..inputs import MAX_KEYWORDS, MAX_URLS, MIN_KEYWORDS, MIN_URLS  # allowed input counts
+from ..workflow import Workflow, split_keywords  # all the steps behind the screens
 
 APP_TITLE = "TAAS - Tool for Automatic Article Submission"
 
@@ -50,6 +53,14 @@ WRAP = 580  # where long text wraps (pixels)
 POLL_MS = 150  # how often the window checks for a finished job
 DRAFT_CHOICE, LIVE_CHOICE = "Save as Blogger draft", "Publish live"
 STEPS = ["Add pages", "Check details", "Review article", "Publish"]
+MARKET_COUNTRIES = (
+    "Netherlands", "Germany", "Italy", "Spain", "France", "Belgium",
+    "Saudi Arabia", "Qatar", "United Kingdom", "Ireland", "Kuwait", "Bahrain",
+    "Philippines", "Malaysia", "Norway", "Sweden", "Denmark", "Finland",
+    "Nigeria", "Kenya", "South Africa", "Canada", "Iceland", "Croatia",
+    "Hong Kong", "Singapore", "Australia", "New Zealand", "UAE", "India",
+    "Greece", "Brazil",
+)
 
 
 def font(size=13, weight="normal"):
@@ -88,15 +99,18 @@ class App(ctk.CTk):
         self.geometry("1100x760")
         self.minsize(980, 660)
         self.configure(fg_color=PAGE_BG)
+        self.set_window_icon()
 
         # data shared by the screens
         self.last_input = None  # what the user typed on the Input screen
+        self.last_keyword_seed = ""
         self.analysis = None  # result of reading the pages
         self.draft = None  # the article being reviewed
         self.result = None  # ("ok", PostResult) or ("error", text)
         self.busy = False
         self.dark = False
 
+        self.sidebar_icon_refs = {}
         self.build_sidebar()
 
         # the right side: a notice, the "Working..." line, and the screen
@@ -127,6 +141,14 @@ class App(ctk.CTk):
         if auto_check and self.workflow.update_check_ready():
             self.run_task(self.workflow.check_for_update, self.after_quiet_check, "", background=True)
 
+    def set_window_icon(self):
+        if sys.platform != "win32":
+            return
+        bundle_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+        icon_path = bundle_dir / "assets" / "taas-logo.ico"
+        if icon_path.is_file():
+            self.iconbitmap(default=str(icon_path))
+
     # The sidebar: logo, the four steps, and the small buttons at the bottom
     def build_sidebar(self):
         bar = self.sidebar = ctk.CTkFrame(self, width=SIDEBAR_W, fg_color=SIDEBAR_BG, corner_radius=0,
@@ -151,20 +173,56 @@ class App(ctk.CTk):
             label = ctk.CTkLabel(row, text=name, anchor="w", text_color=MUTED, font=font(15))
             label.pack(side="left", fill="x", expand=True)
             self.step_rows.append((row, circle, label))
+            for widget in (row, circle, label):
+                widget.bind("<Button-1>", lambda event, step=number: self.on_step_click(event, step))
+                widget.configure(cursor="hand2")
+            for widget in (row, circle, label):
+                widget.bind("<Enter>", lambda event, step=number: self.on_step_hover(step, True))
+                widget.bind("<Leave>", lambda event, step=number: self.on_step_hover(step, False))
+
+        self.markets_button = ctk.CTkButton(
+            bar, text="Markets", command=self.open_markets, **flat_button()
+        )
+        self.markets_button.pack(fill="x", padx=14, pady=(12, 0))
 
         # the small buttons at the bottom
         ctk.CTkFrame(bar, fg_color="transparent").pack(fill="both", expand=True)
         ctk.CTkFrame(bar, height=1, fg_color=LINE, corner_radius=0).pack(fill="x", padx=20)
-        self.theme_button = ctk.CTkButton(bar, text="Dark mode", command=self.on_toggle_theme, **flat_button())
-        self.theme_button.pack(fill="x", padx=14, pady=(12, 0))
-        ctk.CTkButton(bar, text="Check for updates", command=self.on_check_updates, **flat_button()).pack(
-            fill="x", padx=14)
-        ctk.CTkButton(bar, text="Settings", command=self.open_setup, **flat_button()).pack(fill="x", padx=14)
+        self.theme_icon, self.theme_button = self.sidebar_option("moon", "Dark mode", self.on_toggle_theme,
+                                                                pady=(12, 0))
+        self.sidebar_option("update", "Check for updates", self.on_check_updates)
+        self.sidebar_option("settings", "Settings", self.open_setup)
         ctk.CTkLabel(bar, text=f"Version {self.workflow.version}", anchor="w", text_color=MUTED,
                      font=font(12)).pack(fill="x", padx=28, pady=(8, 22))
 
+    def sidebar_option(self, icon, text, command, pady=0):
+        row = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        row.pack(fill="x", padx=14, pady=pady)
+        icon_label = ctk.CTkLabel(
+            row, text="", image=self.sidebar_icon_image(icon), width=28, height=38, text_color=INK
+        )
+        icon_label.pack(side="left", padx=(8, 2))
+        button = ctk.CTkButton(row, text=text, command=command, **flat_button())
+        button.pack(side="left", fill="x", expand=True)
+        return icon_label, button
+
+    def sidebar_icon_image(self, name):
+        image = self.sidebar_icon_refs.get(name)
+        if image is None:
+            bundle_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+            light_path = bundle_dir / "assets" / f"sidebar_{name}_light.png"
+            dark_path = bundle_dir / "assets" / f"sidebar_{name}_dark.png"
+            with Image.open(light_path) as light:
+                light_image = light.copy()
+            with Image.open(dark_path) as dark:
+                dark_image = dark.copy()
+            image = ctk.CTkImage(light_image=light_image, dark_image=dark_image, size=(24, 24))
+            self.sidebar_icon_refs[name] = image
+        return image
+
     # Mark which step the user is on: earlier steps get a tick, later ones stay grey (step 0 = none)
     def set_step(self, current):
+        self.current_step = current
         for number, (row, circle, label) in enumerate(self.step_rows, start=1):
             if number < current:  # done
                 row.configure(fg_color="transparent")
@@ -179,11 +237,24 @@ class App(ctk.CTk):
                 circle.configure(text=str(number), fg_color=STEP_FILL, text_color=MUTED)
                 label.configure(text_color=MUTED, font=font(15))
 
+    def on_step_hover(self, step, hovered):
+        row = self.step_rows[step - 1][0]
+        if hovered:
+            row.configure(fg_color=ACCENT_SOFT if step == self.current_step else FIELD_BG)
+        else:
+            self.set_step(self.current_step)
+
+    def on_step_click(self, event, step):
+        self.navigate_step(step)
+        return "break"
+
     # Switch between the light and the dark look
     def on_toggle_theme(self):
         self.dark = not self.dark
         ctk.set_appearance_mode("dark" if self.dark else "light")
         self.theme_button.configure(text="Light mode" if self.dark else "Dark mode")
+        icon_name = "sun" if self.dark else "moon"
+        self.theme_icon.configure(image=self.sidebar_icon_image(icon_name))
 
     # Show a screen (the old one is removed)
     def show(self, screen_class):
@@ -193,10 +264,33 @@ class App(ctk.CTk):
         self.screen.pack(fill="both", expand=True)
         self.set_step(self.screen.STEP)
 
+    def navigate_step(self, step):
+        if self.busy or self.screen is None:
+            return
+
+        destinations = {
+            1: InputScreen if not self.workflow.missing_setup() else None,
+            2: DetailsScreen if self.analysis is not None else None,
+            3: ArticleScreen if self.draft is not None else None,
+            4: ResultScreen if self.result and self.result[0] == "ok" else None,
+        }
+        destination = destinations.get(step)
+        if destination is None or isinstance(self.screen, destination):
+            return
+
+        save = getattr(self.screen, "save_for_navigation", None)
+        if save:
+            save()
+        self.show(destination)
+
     # Open Setup (ignored while a job runs)
     def open_setup(self):
         if not self.busy:
             self.show(SetupScreen)
+
+    def open_markets(self):
+        if not self.busy:
+            self.show(MarketsScreen)
 
     # Show or clear the "Working..." line
     def set_busy(self, text):
@@ -302,6 +396,13 @@ class App(ctk.CTk):
     def ask_yes_no(self, title, message):
         from tkinter import messagebox  # imported here so the file loads without a display
         return messagebox.askyesno(title, message)
+
+    # Let the user pick a picture file; returns its path, or "" if the window was closed
+    def choose_picture(self):
+        from tkinter import filedialog  # imported here so the file loads without a display
+        return filedialog.askopenfilename(
+            title="Choose a picture to upload",
+            filetypes=[("Pictures", "*.jpg *.jpeg *.png *.gif *.webp"), ("All files", "*.*")])
 
 
 class Screen(ctk.CTkFrame):
@@ -424,6 +525,111 @@ class Screen(ctk.CTkFrame):
 
 # ------------------------------------------------------------------ Setup
 
+class MarketsScreen(Screen):
+    TITLE = "Markets"
+    STEP = 0
+
+    def build(self):
+        self.heading(
+            "Markets",
+            "Choose a country to see its two planned publishing website options.",
+        )
+        self.section("Country")
+        self.country_menu = MarketsCountryMenu(
+            self.page,
+            values=list(MARKET_COUNTRIES),
+            command=self.on_country_changed,
+            **self.menu_look(280),
+        )
+        self.country_menu.pack(anchor="w", padx=22, pady=8)
+        self.country_menu.set(MARKET_COUNTRIES[0])
+
+        self.section("Website options")
+        self.country_label = self.text(MARKET_COUNTRIES[0], ACCENT_TEXT)
+        row = ctk.CTkFrame(self.page, fg_color="transparent")
+        row.pack(fill="x", padx=22, pady=8)
+        placeholder_style = quiet_button(state="disabled", width=240)
+        self.website_one = ctk.CTkButton(
+            row, text="Website 1 (coming soon)", **placeholder_style
+        )
+        self.website_one.pack(side="left", padx=(0, 10))
+        self.website_two = ctk.CTkButton(
+            row, text="Website 2 (coming soon)", **placeholder_style
+        )
+        self.website_two.pack(side="left")
+        self.text(
+            "These are placeholders only. Country-specific publishing will be available "
+            "after the websites and their publishing integrations are configured.",
+            MUTED,
+        )
+
+    def on_country_changed(self, country):
+        self.country_label.configure(text=country)
+
+
+class MarketsCountryMenu(ctk.CTkOptionMenu):
+    VISIBLE_ITEMS = 10
+    ITEM_HEIGHT = 34
+
+    def _open_dropdown_menu(self):
+        if hasattr(self, "country_popup") and self.country_popup.winfo_exists():
+            self.country_popup.destroy()
+            return
+
+        root = self.winfo_toplevel()
+        screen_height = self.winfo_screenheight()
+        row_height = int(round(self._apply_widget_scaling(self.ITEM_HEIGHT)))
+        popup_height = int(round(self._apply_widget_scaling(
+            self.VISIBLE_ITEMS * self.ITEM_HEIGHT
+        )))
+        popup_height = min(popup_height, screen_height - 20)
+        x = self.winfo_rootx()
+        below = self.winfo_rooty() + self.winfo_height()
+        above = self.winfo_rooty() - popup_height
+        y = above if below + popup_height > screen_height and above >= 0 else below
+
+        popup = self.country_popup = ctk.CTkToplevel(root, fg_color=CARD_BG)
+        popup.withdraw()
+        popup.overrideredirect(True)
+        popup.transient(root)
+        popup.geometry(
+            f"{self.winfo_width()}x{popup_height}+{x}+{y}"
+        )
+        frame = ctk.CTkScrollableFrame(
+            popup,
+            width=self.winfo_width(),
+            height=popup_height,
+            fg_color=CARD_BG,
+            corner_radius=12,
+            border_width=1,
+            border_color=LINE,
+            scrollbar_button_color=LINE,
+            scrollbar_button_hover_color=INPUT_LINE,
+        )
+        frame.pack(fill="both", expand=True)
+        item_style = flat_button()
+        item_style["height"] = row_height
+        for country in self._values:
+            button = ctk.CTkButton(
+                frame,
+                text=country,
+                command=lambda selected=country: self._select_country(selected),
+                **item_style,
+            )
+            button.pack(fill="x", padx=4, pady=1)
+
+        popup.bind("<Escape>", lambda event: popup.destroy())
+        popup.deiconify()
+        popup.focus_force()
+
+    def _select_country(self, country):
+        self.set(country)
+        self._command(country)
+        self.country_popup.destroy()
+
+
+# ------------------------------------------------------------------ Setup
+
 class SetupScreen(Screen):
     TITLE = "Setup"
     STEP = 0
@@ -471,10 +677,17 @@ class SetupScreen(Screen):
 
         # --- blog ---
         self.section("3. Your blog")
-        self.blogs = {}  # menu text -> blog id
-        self.blog_menu = ctk.CTkOptionMenu(self.page, values=["(sign in, then load your blogs)"],
+        self.blogs = {}  # menu text -> Blogger blog
+        self.selected_blog_url = ""
+        blog_row = ctk.CTkFrame(self.page, fg_color="transparent")
+        blog_row.pack(fill="x", padx=22, pady=6)
+        self.blog_menu = ctk.CTkOptionMenu(blog_row, values=["(sign in, then load your blogs)"],
                                            command=self.on_blog_chosen, **self.menu_look(420))
-        self.blog_menu.pack(anchor="w", padx=22, pady=6)
+        self.blog_menu.pack(side="left", padx=(0, 8), fill="x", expand=True)
+        self.open_blog_button = ctk.CTkButton(
+            blog_row, text="Open blog", command=self.open_blog, width=130, state="disabled", **quiet_button()
+        )
+        self.open_blog_button.pack(side="left")
         if s.blog_id:
             self.blog_menu.set(f"Saved blog (id {s.blog_id})")
         self.button("Load my blogs", self.on_load_blogs, quiet=True)
@@ -544,12 +757,19 @@ class SetupScreen(Screen):
         self.refresh_google()
         if kind == "error":
             self.say(value)
+            if self.app.ask_yes_no(
+                "Login failed",
+                f"{value}\n\nWould you like to try signing in again?",
+            ):
+                self.on_sign_in()
             return
         self.say("Signed in.", ok=True)
         self.on_load_blogs()
 
     # Ask Blogger for the user's blogs
     def on_load_blogs(self):
+        self.selected_blog_url = ""
+        self.open_blog_button.configure(state="disabled")
         self.app.run_task(self.workflow.list_blogs, self.after_blogs, "Loading your blogs...")
 
     def after_blogs(self, kind, value):
@@ -557,14 +777,18 @@ class SetupScreen(Screen):
             self.say(value)
             return
         if not value:
+            self.blogs = {}
+            self.blog_menu.configure(values=["(no blogs found)"])
+            self.blog_menu.set("(no blogs found)")
             self.say("No blogs were found on this Google account. Create one on Blogger first.")
             return
-        self.blogs = {f"{b.name} ({b.url})": b.id for b in value}
+        self.blogs = {f"{b.name} ({b.url})": b for b in value}
         labels = list(self.blogs)
         self.blog_menu.configure(values=labels)
-        current = [l for l, i in self.blogs.items() if i == self.workflow.settings.blog_id]
+        current = [l for l, blog in self.blogs.items() if blog.id == self.workflow.settings.blog_id]
         if current:
             self.blog_menu.set(current[0])
+            self.on_blog_chosen(current[0])
         elif len(labels) == 1:
             self.blog_menu.set(labels[0])
             self.on_blog_chosen(labels[0])
@@ -574,10 +798,16 @@ class SetupScreen(Screen):
 
     # The user picked a blog
     def on_blog_chosen(self, label):
-        blog_id = self.blogs.get(label)
-        if blog_id:
-            self.workflow.select_blog(blog_id)
+        blog = self.blogs.get(label)
+        if blog:
+            self.workflow.select_blog(blog.id)
+            self.selected_blog_url = blog.url
+            self.open_blog_button.configure(state="normal" if blog.url else "disabled")
             self.say("Blog saved.", ok=True)
+
+    def open_blog(self):
+        if self.selected_blog_url:
+            webbrowser.open(self.selected_blog_url)
 
     # Go on when everything is ready
     def on_continue(self):
@@ -600,8 +830,10 @@ class InputScreen(Screen):
     def build(self):
         saved_urls, saved_keywords = self.app.last_input or ([""], "")
         saved_urls = saved_urls[:MAX_URLS] or [""]
+        self.app.last_keyword_seed = getattr(self.app, "last_keyword_seed", "")
+        self.selected_keywords = split_keywords(saved_keywords)
         self.heading("Let's write your article",
-                     f"Add {MIN_URLS} or {MAX_URLS} product pages. Start with one, then add more as needed.")
+                     f"Add at least {MIN_URLS} product page (up to {MAX_URLS}).")
         self.url_fields = ctk.CTkFrame(self.page, fg_color="transparent")
         self.url_fields.pack(fill="x")
         self.urls, self.ticks = [], []
@@ -614,20 +846,131 @@ class InputScreen(Screen):
         self.add_url_button.pack(anchor="w", padx=22, pady=6)
         self.update_add_url_button()
         self.refresh_ticks()
-        ctk.CTkLabel(self.page, text="Keywords people might search for", anchor="w", text_color=INK,
+        ctk.CTkLabel(self.page, text="Keyword ideas", anchor="w", text_color=INK,
                      font=font(14, "bold")).pack(fill="x", padx=22, pady=(14, 0))
-        self.keywords = ctk.CTkTextbox(self.page, **self.textbox_look(120))
-        self.keywords.pack(fill="x", padx=22, pady=4)
-        if saved_keywords:
-            self.keywords.insert("1.0", saved_keywords)
-        self.text("Add 5 to 10, one per line or separated by commas.", MUTED)
+        seed_row = ctk.CTkFrame(self.page, fg_color="transparent")
+        seed_row.pack(fill="x", padx=22, pady=4)
+        self.keyword_seed = ctk.CTkEntry(
+            seed_row, placeholder_text='Enter one seed phrase, e.g. "Diwali sale"', **self.entry_look(420)
+        )
+        self.keyword_seed.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        if self.app.last_keyword_seed:
+            self.keyword_seed.insert(0, self.app.last_keyword_seed)
+        self.generate_keywords_button = ctk.CTkButton(
+            seed_row, text="Generate keywords", command=self.on_generate_keywords, state="disabled",
+            width=170, **quiet_button()
+        )
+        self.generate_keywords_button.pack(side="left")
+        self.keyword_seed.bind("<KeyRelease>", lambda event: self.update_keyword_controls())
+
+        ctk.CTkLabel(self.page, text="Keywords for the article", anchor="w", text_color=INK,
+                     font=font(14, "bold")).pack(fill="x", padx=22, pady=(12, 0))
+        self.keyword_chip_area = ctk.CTkFrame(self.page, fg_color="transparent")
+        self.keyword_chip_area.pack(fill="x", padx=22, pady=(4, 2))
+        self.keyword_chip_rows = []
+        self.render_keyword_chips()
+
+        add_row = ctk.CTkFrame(self.page, fg_color="transparent")
+        add_row.pack(fill="x", padx=22, pady=4)
+        self.manual_keywords = ctk.CTkEntry(
+            add_row, placeholder_text="Add keywords separated by commas", **self.entry_look(420)
+        )
+        self.manual_keywords.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.manual_keywords.bind("<Return>", self.on_add_keywords)
+        self.add_keywords_button = ctk.CTkButton(
+            add_row, text="Add", command=self.on_add_keywords, width=80, **quiet_button()
+        )
+        self.add_keywords_button.pack(side="left")
+        self.keyword_count = self.text("", MUTED)
         ctk.CTkFrame(self.page, height=10, fg_color="transparent").pack()
-        self.primary("Read my pages", self.on_read)
+        self.read_button = self.primary("Read my pages", self.on_read, state="disabled")
+        self.update_keyword_controls()
+
+    def render_keyword_chips(self):
+        for row in self.keyword_chip_rows:
+            row.destroy()
+        self.keyword_chip_rows = []
+        for start in range(0, len(self.selected_keywords), 2):
+            row = ctk.CTkFrame(self.keyword_chip_area, fg_color="transparent")
+            row.pack(fill="x", pady=2)
+            self.keyword_chip_rows.append(row)
+            for index in range(start, min(start + 2, len(self.selected_keywords))):
+                keyword = self.selected_keywords[index]
+                chip = ctk.CTkFrame(row, fg_color=ACCENT_SOFT, corner_radius=16)
+                chip.pack(side="left", padx=(0, 8), pady=2)
+                ctk.CTkLabel(
+                    chip, text=keyword, text_color=INK, font=font(13), width=min(220, max(60, len(keyword) * 8))
+                ).pack(side="left", padx=(10, 4), pady=6)
+                remove_look = quiet_button()
+                remove_look.update(width=26, height=26, corner_radius=13)
+                ctk.CTkButton(
+                    chip, text="×", command=lambda word=keyword: self.remove_keyword(word),
+                    **remove_look
+                ).pack(side="left", padx=(0, 4), pady=3)
+
+    def update_keyword_controls(self):
+        seed = self.keyword_seed.get().strip()
+        self.generate_keywords_button.configure(state="normal" if seed else "disabled")
+        count = len(self.selected_keywords)
+        self.keyword_count.configure(
+            text=f"{count} of {MAX_KEYWORDS} keywords selected. Add at least {MIN_KEYWORDS} to continue."
+            if count < MIN_KEYWORDS else f"{count} of {MAX_KEYWORDS} keywords selected."
+        )
+        self.read_button.configure(state="normal" if count >= MIN_KEYWORDS else "disabled")
+
+    def add_keyword_values(self, raw):
+        additions = raw if isinstance(raw, (list, tuple)) else split_keywords(raw)
+        new_values = list(self.selected_keywords)
+        seen = {word.casefold() for word in new_values}
+        for keyword in additions:
+            normalized = " ".join(keyword.split())
+            if normalized.casefold() not in seen:
+                new_values.append(normalized)
+                seen.add(normalized.casefold())
+        if len(new_values) > MAX_KEYWORDS:
+            self.say(f"Choose no more than {MAX_KEYWORDS} keywords.")
+            return False
+        self.selected_keywords = new_values
+        self.render_keyword_chips()
+        self.update_keyword_controls()
+        return True
+
+    def remove_keyword(self, keyword):
+        self.selected_keywords = [item for item in self.selected_keywords if item != keyword]
+        self.render_keyword_chips()
+        self.update_keyword_controls()
+
+    def on_add_keywords(self, event=None):
+        if self.add_keyword_values(self.manual_keywords.get()):
+            self.manual_keywords.delete(0, "end")
+            self.say("")
+        return "break"
+
+    def on_generate_keywords(self):
+        seed = self.keyword_seed.get().strip()
+        self.app.last_keyword_seed = seed
+        self.generate_keywords_button.configure(state="disabled")
+        self.say("")
+        self.app.run_task(
+            lambda: self.workflow.suggest_keywords(seed),
+            lambda kind, value: self.after_generate_keywords(seed, kind, value),
+            "Getting keyword suggestions...",
+        )
+
+    def after_generate_keywords(self, seed, kind, value):
+        self.generate_keywords_button.configure(state="normal" if self.keyword_seed.get().strip() else "disabled")
+        if kind == "error":
+            self.say(value)
+            return
+        if self.keyword_seed.get().strip() != seed:
+            return
+        if self.add_keyword_values(value):
+            self.say(f"Added {len(value)} keyword suggestion(s).", ok=True)
 
     def add_url_field(self, value=""):
         number = len(self.urls) + 1
         entry = self.field(
-            f"Page {number}" + (" (optional)" if number == MAX_URLS else ""),
+            f"Page {number}" + (" (optional)" if number > MIN_URLS else ""),
             value, width=640, placeholder="https://", parent=self.url_fields,
         )
         tick = ctk.CTkLabel(self.url_fields, text="", anchor="w", text_color=GREEN, font=font(13, "bold"))
@@ -654,10 +997,15 @@ class InputScreen(Screen):
         for entry, tick in zip(self.urls, self.ticks):
             tick.configure(text="✓  Looks good" if looks_like_address(entry.get()) else "")
 
+    def save_for_navigation(self):
+        self.app.last_keyword_seed = self.keyword_seed.get().strip()
+        self.app.last_input = ([entry.get() for entry in self.urls], ", ".join(self.selected_keywords))
+
     def on_read(self):
         urls = [e.get() for e in self.urls]
-        keywords = self.keywords.get("1.0", "end")
-        self.app.last_input = (urls, keywords.strip())
+        self.app.last_keyword_seed = self.keyword_seed.get().strip()
+        keywords = ", ".join(self.selected_keywords)
+        self.app.last_input = (urls, keywords)
         self.say("")
         self.app.run_task(lambda: self.workflow.analyze(urls, keywords), self.after_read,
                           "Reading the pages and detecting details. This can take a minute...")
@@ -707,6 +1055,9 @@ class DetailsScreen(Screen):
             item.detection.note = note.get().strip()
         analysis.category = self.category.get().strip()
         analysis.country = self.country.get().strip()
+
+    def save_for_navigation(self):
+        self.keep_edits()
 
     def on_back(self):
         self.keep_edits()
@@ -759,6 +1110,8 @@ class ArticleScreen(Screen):
         row.pack(anchor="w", padx=22, pady=8)
         ctk.CTkButton(row, text="Add image", width=130, command=self.on_add_image, **main_button()).pack(
             side="left", padx=(0, 8))
+        ctk.CTkButton(row, text="Upload image to cloud", width=190, command=self.on_upload_image,
+                      **main_button()).pack(side="left", padx=(0, 8))
         # not ready yet: shown so the team can see what is coming, but it cannot be clicked
         self.generate_images_button = ctk.CTkButton(row, text="Generate images automatically (coming soon)",
                                                     width=300, state="disabled", **quiet_button())
@@ -766,6 +1119,13 @@ class ArticleScreen(Screen):
         self.image_note = ctk.CTkLabel(self.page, text="", anchor="w", justify="left", wraplength=WRAP,
                                        text_color=INK, font=font(13))
         self.image_note.pack(fill="x", padx=22, pady=2)
+        # the web address of the uploaded picture: it can be selected and copied, but not changed
+        ctk.CTkLabel(self.page, text="Uploaded image web address (copy it from here)", anchor="w", text_color=INK,
+                     font=font(14, "bold")).pack(fill="x", padx=22, pady=(10, 0))
+        self.uploaded_url = ctk.CTkEntry(self.page, **self.entry_look(640))
+        self.uploaded_url.configure(width=200)
+        self.uploaded_url.pack(fill="x", padx=22, pady=4)
+        self.uploaded_url.configure(state="readonly")
 
         # --- which keyword is the link text for each address ---
         self.section("Links")
@@ -830,6 +1190,10 @@ class ArticleScreen(Screen):
     def current(self):
         return self.title_entry.get().strip(), self.body.get("1.0", "end").strip()
 
+    def save_for_navigation(self):
+        title, text = self.current()
+        self.workflow.recheck(self.app.draft, title, text)
+
     # Put a picture line into the article text, after the paragraph the cursor is in
     def on_add_image(self):
         try:
@@ -843,10 +1207,32 @@ class ArticleScreen(Screen):
         self.image_note.configure(text="Image added to the article text.", text_color=GREEN)
         self.on_check()
 
+    # Let the user pick a picture, upload it to Cloudinary, then show and fill in its web address
+    def on_upload_image(self):
+        path = self.app.choose_picture()
+        if not path:  # the user closed the window
+            return
+        self.image_note.configure(text="", text_color=INK)
+        self.app.run_task(lambda: self.workflow.upload_image(path), self.after_upload_image,
+                          "Uploading the picture to the cloud...")
+
+    # The upload finished
+    def after_upload_image(self, kind, value):
+        if kind == "error":
+            self.image_note.configure(text=value, text_color=RED)
+            return
+        self.uploaded_url.configure(state="normal")
+        self.uploaded_url.delete(0, "end")
+        self.uploaded_url.insert(0, value)
+        self.uploaded_url.configure(state="readonly")
+        self.image_url.delete(0, "end")
+        self.image_url.insert(0, value)
+        self.image_note.configure(text="Picture uploaded. Its web address is filled in above; add a description "
+                                       "and press Add image.", text_color=GREEN)
+
     # Go back to the details (the article text on screen is kept in the draft)
     def on_back(self):
-        title, text = self.current()
-        self.workflow.recheck(self.app.draft, title, text)
+        self.save_for_navigation()
         self.app.show(DetailsScreen)
 
     # Run the checks on what is on screen
@@ -949,6 +1335,7 @@ class ResultScreen(Screen):
     # Start again with empty boxes
     def on_again(self):
         self.app.last_input = self.app.analysis = self.app.draft = self.app.result = None
+        self.app.last_keyword_seed = ""
         self.app.show(InputScreen)
 
 

@@ -58,19 +58,33 @@ class ThemeTests(UiBase):
 
     def test_dark_mode_button_switches_and_switches_back(self):
         modes = []
+        moon_icon = self.app.theme_icon.kw["image"]
+        self.assertIs(moon_icon, self.app.sidebar_icon_refs["moon"])
         with mock.patch.object(ui.ctk, "set_appearance_mode", modes.append):
             self.click("Dark mode")
             self.assertEqual(modes, ["dark"])
+            self.assertIs(self.app.theme_icon.kw["image"], self.app.sidebar_icon_refs["sun"])
             find(self.app, "CTkButton", "Light mode").invoke()
         self.assertEqual(modes, ["dark", "light"])
+        self.assertIs(self.app.theme_icon.kw["image"], moon_icon)
         find(self.app, "CTkButton", "Dark mode")
 
     def test_sidebar_has_the_four_steps_and_the_small_buttons(self):
-        text = labels(self.app)
+        text = [label.kw.get("text", "") for _, _, label in self.app.step_rows]
         for name in ("Add pages", "Check details", "Review article", "Publish"):
-            self.assertIn(name, text)
-        for name in ("Check for updates", "Settings"):
+            self.assertTrue(any(name in label for label in text), name)
+        for row, circle, label in self.app.step_rows:
+            self.assertEqual(row.kw.get("corner_radius"), 14)
+            self.assertEqual(circle.kw.get("width"), 28)
+            self.assertIn("<Button-1>", label.bindings)
+            self.assertEqual(label.kw.get("cursor"), "hand2")
+        for name in ("Markets", "Check for updates", "Settings"):
             find(self.app, "CTkButton", name)
+        for name, icon in (("Dark mode", "moon"), ("Check for updates", "update"), ("Settings", "settings")):
+            button = find(self.app, "CTkButton", name)
+            icon_label = next(child for child in button.master.children if type(child).__name__ == "CTkLabel")
+            self.assertIs(icon_label.kw["image"], self.app.sidebar_icon_refs[icon])
+            self.assertEqual(icon_label.kw["image"].size, (24, 24))
 
     def test_sidebar_follows_the_steps(self):
         self.assertEqual([step_state(self.app, n) for n in (1, 2, 3, 4)], ["later"] * 4)  # Setup: none yet

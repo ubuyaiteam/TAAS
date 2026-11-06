@@ -10,7 +10,7 @@ from pathlib import Path  # file paths
 
 import requests  # web request errors
 
-from taas import auth, config, workflow  # the code being tested
+from taas import auth, workflow  # the code being tested
 from taas.blogger import BloggerClient  # real Blogger client
 from taas.errors import AuthRequiredError, BloggerError, ConfigError, NetworkError  # our error types
 from taas.gemini import GeminiClient  # real Gemini client

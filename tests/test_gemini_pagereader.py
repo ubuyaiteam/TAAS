@@ -1,4 +1,3 @@
-import json  # read JSON
 import unittest  # test tools
 
 import requests  # web request errors

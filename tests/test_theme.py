@@ -1,119 +1,64 @@
-"""Tests for the Ubuy theme, the logo, the icon file and the theme menu."""
+"""Tests for the app icon and theme settings."""
 
-import re  # check color codes
+import struct  # read Windows icon headers
 import tempfile  # temporary folders
 import unittest  # test tools
+from unittest import mock  # replace platform paths in tests
 from pathlib import Path  # file paths
 
-from PIL import Image  # read the icon file
-
-import make_icon  # the icon script (project folder)
-from tests.test_ui_smoke import UiBase  # the screen test setup (loads the stand-in toolkit)
+from tests.test_ui_smoke import UiBase, ui  # the screen test setup (loads the stand-in toolkit)
 from taas import config  # settings
 from taas.errors import ValidationError  # our error types
-from taas.ui import theme  # the colors
-from taas.ui.logo import ICON_SIZES, draw_logo, write_ico  # the logo
 
-HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 ROOT = Path(__file__).resolve().parent.parent
+LOGO_ICON = ROOT / "assets" / "taas-logo.ico"
+ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
 
 
-# The sizes stored in an .ico file
+# Read the image sizes from each PNG frame in a Windows icon file.
 def icon_sizes(path):
-    with Image.open(path) as icon:
-        return sorted(icon.ico.sizes())
+    data = Path(path).read_bytes()
+    reserved, image_type, count = struct.unpack_from("<HHH", data)
+    if reserved != 0 or image_type != 1:
+        raise ValueError(f"{path} is not a Windows icon file.")
+    sizes = []
+    for index in range(count):
+        width, height, _, _, _, _, frame_size, frame_offset = struct.unpack_from(
+            "<BBBBHHII", data, 6 + 16 * index
+        )
+        width, height = width or 256, height or 256
+        frame = data[frame_offset:frame_offset + frame_size]
+        if frame[:8] != b"\x89PNG\r\n\x1a\n":
+            raise ValueError(f"{path} contains a non-PNG icon frame.")
+        frame_width, frame_height = struct.unpack_from(">II", frame, 16)
+        if (frame_width, frame_height) != (width, height):
+            raise ValueError(f"{path} contains a frame with inconsistent dimensions.")
+        sizes.append((width, height))
+    return sorted(sizes)
 
 
-class ColorTests(unittest.TestCase):
-    def test_brand_colors_are_the_ubuy_ones(self):
-        self.assertEqual((theme.AMBER, theme.INK), ("#FFB100", "#151515"))
-
-    def test_every_pair_has_a_light_and_a_dark_color(self):
-        for name in ("WINDOW", "CARD", "CARD_TOP", "LINE", "FIELD", "FIELD_LINE", "TEXT", "TEXT_SOFT", "GREEN", "RED",
-                     "NOTICE", "BUTTON_TEXT", "BUTTON_TEXT_OFF", "CHOICE_OFF", "SCROLL", "SCROLL_HOVER"):
-            pair = getattr(theme, name)
-            self.assertEqual(len(pair), 2, name)
-            self.assertTrue(all(HEX.match(c) for c in pair), name)
-
-    def test_text_can_be_read_in_both_modes(self):
-        # (text color, background color); 4.5 is the usual bar for normal text
-        pairs = {
-            "text on window": (theme.TEXT, theme.WINDOW), "text on cards": (theme.TEXT, theme.CARD),
-            "text on card headers": (theme.TEXT, theme.CARD_TOP), "text in fields": (theme.TEXT, theme.FIELD),
-            "hints in fields": (theme.TEXT_SOFT, theme.FIELD), "hints on cards": (theme.TEXT_SOFT, theme.CARD),
-            "good news on cards": (theme.GREEN, theme.CARD), "good news on window": (theme.GREEN, theme.WINDOW),
-            "problems on cards": (theme.RED, theme.CARD), "problems on window": (theme.RED, theme.WINDOW),
-            "problems in fields": (theme.RED, theme.FIELD), "text on the update notice": (theme.TEXT, theme.NOTICE),
-            "text on a choice bar": (theme.BUTTON_TEXT, theme.CHOICE_OFF),
-        }
-        for name, (text, background) in pairs.items():
-            for mode in (0, 1):
-                self.assertGreaterEqual(theme.contrast(text[mode], background[mode]), 4.5, f"{name} ({'light' if mode == 0 else 'dark'})")
-
-    def test_button_text_can_be_read_on_amber(self):
-        self.assertGreaterEqual(theme.contrast(theme.INK, theme.AMBER), 4.5)
-        self.assertGreaterEqual(theme.contrast(theme.INK, theme.AMBER_HOVER), 4.5)
-
-    def test_contrast_maths(self):
-        self.assertAlmostEqual(theme.contrast("#000000", "#FFFFFF"), 21.0, places=1)
-        self.assertAlmostEqual(theme.contrast("#777777", "#777777"), 1.0)
-
-
-class ApplyTests(unittest.TestCase):
-    def test_overrides_are_well_formed(self):
-        for widget, settings in theme.overrides().items():
-            for key, value in settings.items():
-                if key.endswith("color") or "_color" in key:
-                    self.assertEqual(len(value), 2, f"{widget}.{key}")
-                    self.assertTrue(all(HEX.match(c) for c in value), f"{widget}.{key}")
-
-    def test_buttons_are_amber_with_dark_text(self):
-        button = theme.overrides()["CTkButton"]
-        self.assertEqual(button["fg_color"], ["#FFB100", "#FFB100"])
-        self.assertEqual(button["text_color"], ["#151515", "#151515"])
-
-    def test_only_settings_the_toolkit_knows_are_changed(self):
-        class Fake:
-            class ThemeManager:
-                theme = {"CTkButton": {"fg_color": "old", "hover_color": "old", "something_else": "keep"}, "CTkLabel": {}}
-        theme.apply(Fake)
-        button = Fake.ThemeManager.theme["CTkButton"]
-        self.assertEqual(button["fg_color"], ["#FFB100", "#FFB100"])
-        self.assertEqual(button["something_else"], "keep")
-        self.assertNotIn("text_color", button)  # a key the toolkit did not have is not invented
-        self.assertEqual(Fake.ThemeManager.theme["CTkLabel"], {})
-        self.assertNotIn("CTkEntry", Fake.ThemeManager.theme)  # a widget the toolkit did not have is not invented
-
-    def test_apply_does_nothing_when_there_is_no_theme_manager(self):
-        theme.apply(object())  # must not raise
-
-
-class LogoTests(unittest.TestCase):
-    def test_logo_has_the_asked_size_and_a_transparent_corner(self):
-        for size in (16, 64, 256):
-            image = draw_logo(size)
-            self.assertEqual(image.size, (size, size))
-            self.assertEqual(image.mode, "RGBA")
-            self.assertLess(image.getpixel((0, 0))[3], 10)  # outside the rounded badge (about transparent)
-            self.assertEqual(image.getpixel((size // 2, size // 2))[3], 255)  # inside it
-
-    def test_icon_file_holds_every_size(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "t.ico"
-            write_ico(path)
-            self.assertEqual(icon_sizes(path), sorted((s, s) for s in ICON_SIZES))
-
-    def test_the_icon_file_in_the_project_is_there_and_complete(self):
-        path = ROOT / "assets" / "taas.ico"
-        self.assertTrue(path.exists(), "Run: python make_icon.py")
-        self.assertEqual(path, make_icon.TARGET)
-        self.assertEqual(icon_sizes(path), sorted((s, s) for s in ICON_SIZES))
+class IconTests(unittest.TestCase):
+    def test_project_icon_is_a_complete_multisize_windows_icon(self):
+        self.assertTrue(LOGO_ICON.exists())
+        self.assertEqual(icon_sizes(LOGO_ICON), sorted((s, s) for s in ICON_SIZES))
 
     def test_build_scripts_use_the_icon(self):
-        for name in ("build_exe.bat", ".github/workflows/release.yml", ".github/workflows/build-exe.yml"):
+        for name in (".github/workflows/release.yml", ".github/workflows/build-exe.yml"):
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("make_icon.py", text, name)
-            self.assertIn("taas.ico", text, name)
+            self.assertIn("taas-logo.ico", text, name)
+            self.assertIn("--add-data", text, name)
+            self.assertIn("--icon", text, name)
+        spec = (ROOT / "TAAS.spec").read_text(encoding="utf-8")
+        self.assertIn("('assets/taas-logo.ico', 'assets')", spec)
+        build_script = (ROOT / "build_exe.bat").read_text(encoding="utf-8")
+        self.assertIn("TAAS.spec", build_script)
+        self.assertIn("taas_setup.iss", build_script)
+        self.assertNotIn("test_main5.py", build_script)
+        self.assertIn("/DMyAppVersion=%APP_VERSION%", build_script)
+        installer = (ROOT / "taas_setup.iss").read_text(encoding="utf-8")
+        self.assertIn("MyAppVersion", installer)
+        self.assertIn('SetupIconFile=assets\\taas-logo.ico', installer)
+        self.assertIn('Source: "client_secret.json"', installer)
 
 
 class ThemeSettingTests(unittest.TestCase):
@@ -135,6 +80,21 @@ class ThemeSettingTests(unittest.TestCase):
 
 
 class ThemeSettingsTests(UiBase):
+    def test_window_uses_the_taas_icon(self):
+        with mock.patch.object(ui.sys, "platform", "win32"):
+            self.app.set_window_icon()
+        self.assertEqual(Path(self.app.icons[-1]), LOGO_ICON)
+
+    def test_frozen_app_loads_the_bundled_icon(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            icon = Path(tmp) / "assets" / "taas-logo.ico"
+            icon.parent.mkdir()
+            icon.write_bytes(b"icon")
+            with mock.patch.object(ui.sys, "platform", "win32"), \
+                    mock.patch.object(ui.sys, "_MEIPASS", tmp, create=True):
+                self.app.set_window_icon()
+            self.assertEqual(Path(self.app.icons[-1]), icon)
+
     def test_a_wrong_theme_is_refused(self):
         with self.assertRaises(ValidationError):
             self.wf.set_theme_mode("purple")
