@@ -192,8 +192,12 @@ class App(ctk.CTk):
                                                                 pady=(12, 0))
         self.sidebar_option("update", "Check for updates", self.on_check_updates)
         self.sidebar_option("settings", "Settings", self.open_setup)
-        ctk.CTkLabel(bar, text=f"Version {self.workflow.version}", anchor="w", text_color=MUTED,
-                     font=font(12)).pack(fill="x", padx=28, pady=(8, 22))
+        ctk.CTkLabel(
+            bar, text=f"Version {self.workflow.version}", anchor="w", text_color=MUTED, font=font(12)
+        ).pack(fill="x", padx=28, pady=(8, 0))
+        ctk.CTkLabel(
+            bar, text="Created by UBAIT", anchor="w", text_color=MUTED, font=font(11)
+        ).pack(fill="x", padx=28, pady=(2, 18))
 
     def sidebar_option(self, icon, text, command, pady=0):
         row = ctk.CTkFrame(self.sidebar, fg_color="transparent")

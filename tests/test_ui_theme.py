@@ -85,6 +85,10 @@ class ThemeTests(UiBase):
             icon_label = next(child for child in button.master.children if type(child).__name__ == "CTkLabel")
             self.assertIs(icon_label.kw["image"], self.app.sidebar_icon_refs[icon])
             self.assertEqual(icon_label.kw["image"].size, (24, 24))
+        sidebar_labels = [child.kw.get("text") for child in self.app.sidebar.children
+                         if type(child).__name__ == "CTkLabel"]
+        self.assertIn(f"Version {self.app.workflow.version}", sidebar_labels)
+        self.assertIn("Created by UBAIT", sidebar_labels)
 
     def test_sidebar_follows_the_steps(self):
         self.assertEqual([step_state(self.app, n) for n in (1, 2, 3, 4)], ["later"] * 4)  # Setup: none yet
