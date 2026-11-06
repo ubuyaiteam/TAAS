@@ -347,7 +347,7 @@ class InstallSetupUpdateTests(unittest.TestCase):
             self.assertEqual(installer_path.name, "TAAS_Setup_2.0.2.exe")
             self.assertEqual(installer_path.read_bytes(), self.CONTENT)
             self.assertEqual(args[0], [str(installer_path)])
-            self.assertEqual(kwargs["cwd"], str(target.parent))
+            self.assertEqual(Path(kwargs["cwd"]).resolve(), target.parent.resolve())
 
     def test_invalid_installer_checksum_does_not_launch(self):
         with tempfile.TemporaryDirectory() as tmp:
