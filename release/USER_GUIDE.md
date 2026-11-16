@@ -4,7 +4,8 @@ TAAS writes one helpful article from your web addresses and keywords, lets you r
 and posts it to your Blogger blog. Nothing is posted until you confirm.
 
 ## Before you start (once)
-1. Keep `TAAS.exe` and `client_secret.json` in the same folder. (Your admin gives you both.)
+1. Install TAAS using the setup file. Ask your admin for `client_secret.json` and place it at
+   `%APPDATA%\TAAS\client_secret.json` before signing in with Google. The public installer does not contain this file.
 2. You need an API key for **Gemini or OpenAI** and a **Google account that owns a Blogger blog**.
 3. Your Google address must be added as a test user by your admin (see GOOGLE_SETUP.md).
 
@@ -20,8 +21,8 @@ and posts it to your Blogger blog. Nothing is posted until you confirm.
 
 You can open Setup at any time with **Settings** at the bottom of the left sidebar.
 
-## Markets
-Open **Markets** in the sidebar and choose one of the listed countries to see its two planned website
+## Marketplace
+Open **Marketplace** in the sidebar and choose one of the listed countries to see its two planned website
 options. These are placeholders only and cannot publish yet; country-specific website names and publishing
 integrations still need to be configured.
 
@@ -56,11 +57,10 @@ Click **Write the article** (this takes a minute or two).
 ## Updates
 The sidebar shows the version you are running and which of the four steps you are on. **Dark mode** (bottom of the
 sidebar) switches to a dark look; TAAS starts light each time. When TAAS starts it quietly looks for a newer version, and shows
-**New version X is available** with an **Install update and restart** button if there is one. You can also click
-**Check for updates** at any time. Confirm the update to download and verify the new `TAAS.exe`; TAAS then replaces
-the running executable and restarts. Automatic updating requires the Windows app to be in a folder where your account
-can replace files. If installation fails, TAAS restores the previous executable and shows the release page for a
-manual download. Your settings and sign-in stay, because they are kept in `%APPDATA%\TAAS`, not in the .exe.
+**New version X is available** with a **Download and install** button if there is one. You can also click
+**Check for updates** at any time. After confirmation, TAAS downloads and verifies `TAAS_Setup_<version>.exe`,
+then closes and starts the installer. Finish setup to open the updated TAAS version. Your settings and sign-in stay,
+because they are kept in `%APPDATA%\TAAS`, not in the app installation folder.
 
 ## Good to know
 - Articles are about 300 to 400 words by default. Change this in Setup.
@@ -72,7 +72,7 @@ manual download. Your settings and sign-in stay, because they are kept in `%APPD
 ## Messages you may see
 | Message | What to do |
 | --- | --- |
-| Google client file not found | Put `client_secret.json` next to `TAAS.exe`. |
+| Google client file not found | Ask your admin for `client_secret.json` and put it in `%APPDATA%\TAAS`. |
 | Google access expired or was revoked. Please sign in again. | Open Setup and click **Use another Google account** or **Sign in with Google**. |
 | Gemini or OpenAI did not accept the API key | Check the selected provider's key in Setup. |
 | The selected provider's model was not found | Ask your admin for the right model name and enter it in Setup. |

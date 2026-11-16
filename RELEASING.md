@@ -16,9 +16,9 @@
 ## Every release
 1. Make and commit your changes locally. Run the tests: `python -m unittest discover -s tests -t .`
 2. Add a short entry to `CHANGELOG.md` and commit it.
-3. Run `python release.py 1.2.0` (use your new number). It checks that everything is committed, changes the version
-   in `taas/__init__.py`, runs the tests, commits "Release v1.2.0" and creates the tag `v1.2.0`.
-4. Upload: `git push` then `git push origin v1.2.0` (or run step 3 with `--push`).
+3. Run `python release.py 2.1.3` (use your new number). It checks that everything is committed, changes the version
+   in `taas/__init__.py`, runs the tests, commits "Release v2.1.3" and creates the tag `v2.1.3`.
+4. Upload: `git push` then `git push origin v2.1.3` (or run step 3 with `--push`).
 5. On GitHub, the **Actions** tab shows "Release TAAS" running. When it is green, the **Releases** page has
    `TAAS_Setup_<version>.exe` and `USER_GUIDE.md`. The app executable is included inside the installer, not published
    as a separate download. The installer puts the app in Program Files and keeps TAAS settings under `%APPDATA%\TAAS`.

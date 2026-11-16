@@ -181,7 +181,7 @@ class App(ctk.CTk):
                 widget.bind("<Leave>", lambda event, step=number: self.on_step_hover(step, False))
 
         self.markets_button = ctk.CTkButton(
-            bar, text="Markets", command=self.open_markets, **flat_button()
+            bar, text="Marketplace", command=self.open_markets, **flat_button()
         )
         self.markets_button.pack(fill="x", padx=14, pady=(12, 0))
 
@@ -539,12 +539,12 @@ class Screen(ctk.CTkFrame):
 # ------------------------------------------------------------------ Setup
 
 class MarketsScreen(Screen):
-    TITLE = "Markets"
+    TITLE = "Marketplace"
     STEP = 0
 
     def build(self):
         self.heading(
-            "Markets",
+            "Marketplace",
             "Choose a country to see its two planned publishing website options.",
         )
         self.section("Country")

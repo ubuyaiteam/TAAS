@@ -21,8 +21,8 @@ and posts it to your Blogger blog. Nothing is posted until you confirm.
 
 You can open Setup at any time with **Settings** at the bottom of the left sidebar.
 
-## Markets
-Open **Markets** in the sidebar and choose one of the listed countries to see its two planned website
+## Marketplace
+Open **Marketplace** in the sidebar and choose one of the listed countries to see its two planned website
 options. These are placeholders only and cannot publish yet; country-specific website names and publishing
 integrations still need to be configured.
 

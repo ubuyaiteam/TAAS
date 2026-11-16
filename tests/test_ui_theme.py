@@ -78,7 +78,7 @@ class ThemeTests(UiBase):
             self.assertEqual(circle.kw.get("width"), 28)
             self.assertIn("<Button-1>", label.bindings)
             self.assertEqual(label.kw.get("cursor"), "hand2")
-        for name in ("Markets", "Check for updates", "Settings"):
+        for name in ("Marketplace", "Check for updates", "Settings"):
             find(self.app, "CTkButton", name)
         for name, icon in (("Dark mode", "moon"), ("Check for updates", "update"), ("Settings", "settings")):
             button = find(self.app, "CTkButton", name)

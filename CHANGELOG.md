@@ -2,8 +2,11 @@
 
 Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; this file is for people.
 
-## Unreleased
+## 2.1.3
+- Renamed the sidebar section from Markets to Marketplace.
 - When a website refuses the page reader (HTTP 401, 403 or 429), TAAS now retries once in a hidden Google Chrome or Microsoft Edge window (Playwright). If that also fails, the original message is shown with the reason. Add `BROWSER_VISIBLE=1` to the `.env` file next to the app to show the browser window instead of hiding it (some websites block hidden browsers).
+
+## Unreleased
 
 ## 2.0.2
 - Check for updates now downloads and verifies the versioned Inno Setup installer, launches setup, and closes TAAS so the new version can be installed. Finish setup to launch the updated app.

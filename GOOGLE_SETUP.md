@@ -15,10 +15,11 @@ Menu names in Google Cloud Console change from time to time, so follow the inten
 6. Open **Clients** (or **Credentials > Create credentials > OAuth client ID**):
    - Application type: **Desktop app**. Name: TAAS Desktop.
    - Click **Download JSON**.
-7. Save the downloaded file as `client_secret.json` in the TAAS folder:
-   - Windows: `%APPDATA%\TAAS\client_secret.json`
-   - or put it next to `TAAS.exe`. For a release, copy it into the project folder before running `build_exe.bat`, and it is copied into the `release` folder.
-   - or put the file anywhere and set `GOOGLE_CLIENT_SECRET_FILE=<full path>` in the TAAS `.env` file.
+7. Save the downloaded file as `client_secret.json`:
+   - Recommended: `%APPDATA%\TAAS\client_secret.json`.
+   - For a local Inno Setup build, put a copy in the project root before running `build_exe.bat`. The installer copies it to `%APPDATA%\TAAS`; it is not copied into `release`.
+   - For the GitHub-built `TAAS-windows` folder artifact, place it in `%APPDATA%\TAAS` after extracting, or next to `TAAS.exe`.
+   - Alternatively, keep it elsewhere and set `GOOGLE_CLIENT_SECRET_FILE=<full path>` in `%APPDATA%\TAAS\.env`.
 8. Run `python phase1_check.py` (see README.md).
 
 ## Things to confirm in Google's own documentation

@@ -123,8 +123,8 @@ class SetupFlowTests(UiBase):
         self.assertFalse(self.wf.is_signed_in())
         self.assertIn("Sign-in timed out.", " ".join(labels(self.app)))
 
-    def test_markets_lists_countries_with_two_disabled_placeholders(self):
-        self.click("Markets")
+    def test_marketplace_lists_countries_with_two_disabled_placeholders(self):
+        self.click("Marketplace")
         screen = self.app.screen
         self.assertEqual(self.screen_name(), "MarketsScreen")
         self.assertEqual(list(screen.country_menu.kw["values"]), list(ui.MARKET_COUNTRIES))

@@ -1,4 +1,4 @@
-# TAAS - Tool for Automatic Article Submission (version 1.2.1)
+# TAAS - Tool for Automatic Article Submission (version 2.1.3)
 
 A Windows app. You enter at least 1 (up to 5) web addresses and 5-10 keywords. TAAS reads the pages, writes one helpful
 article with Google Gemini or OpenAI, lets you edit it, and posts it to your Blogger blog.
@@ -12,13 +12,14 @@ configured credentials; see TEST_CHECKLIST.md.
 
 ## Build TAAS.exe
 **Option A: on your Windows PC (Python 3.10+ and Inno Setup 6.3+).** Double-click `build_exe.bat`. It prepares
-a local environment, runs the tests, builds `TAAS.exe`, fills the `release` folder, and creates a versioned
-installer in `installer_output`.
+a local environment, runs the tests, builds the app folder in `dist\TAAS`, refreshes `release\USER_GUIDE.md`,
+and creates a versioned installer in `installer_output`. The installer copies the project-root
+`client_secret.json` to `%APPDATA%\TAAS`.
 
 **Option B: in the cloud, nothing to install.** Put this project in a PRIVATE GitHub repository, open the
-Actions tab, choose "Build TAAS.exe", click "Run workflow", and download the `TAAS-windows` file when it finishes.
-Do not commit client_secret.json; copy it next to TAAS.exe yourself afterwards.
-Neither option has been run yet; the build environment used to write the code is not Windows.
+Actions tab, choose "Build TAAS.exe", click "Run workflow", and download the `TAAS-windows` artifact when it finishes.
+It contains the app folder and `USER_GUIDE.md`, but not `client_secret.json`. Do not commit that file; place it in
+`%APPDATA%\TAAS` or next to `TAAS.exe` after extracting the artifact.
 
 ## Commands
 | What | Command |
@@ -33,7 +34,7 @@ Neither option has been run yet; the build environment used to write the code is
 | Switch Google account | `python phase1_check.py --switch-account` |
 | Live check: pages, detection, article | `python phase23_check.py --url URL1 --url URL2 --keywords "k1, k2, k3, k4, k5"` |
 | Same, also save a Blogger draft | add `--post-draft` |
-| Make a release (bump version, test, commit, tag) | `python release.py 1.2.2` (add `--push` to upload). See RELEASING.md |
+| Make a release (bump version, test, commit, tag) | `python release.py 2.1.3` (add `--push` to upload). See RELEASING.md |
 | Sign out by hand (Command Prompt) | `del %APPDATA%\TAAS\token.json` |
 | Open the settings folder | `explorer %APPDATA%\TAAS` |
 
