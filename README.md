@@ -1,4 +1,4 @@
-# TAAS - Tool for Automatic Article Submission (version 2.3.0)
+# TAAS - Tool for Automatic Article Submission (version 2.4.0)
 
 A Windows app. You enter at least 1 (up to 5) web addresses and 5-10 keywords. TAAS reads the pages, writes one helpful
 article with Google Gemini or OpenAI, lets you edit it, and posts it to your Blogger blog.
@@ -34,7 +34,7 @@ Do not commit the client file; add it to `%APPDATA%\TAAS` before signing in when
 | Switch Google account | `python phase1_check.py --switch-account` |
 | Live check: pages, detection, article | `python phase23_check.py --url URL1 --url URL2 --keywords "k1, k2, k3, k4, k5"` |
 | Same, also save a Blogger draft | add `--post-draft` |
-| Make a release (bump version, test, commit, tag) | `python release.py 2.3.0` (add `--push` to upload). See RELEASING.md |
+| Make a release (bump version, test, commit, tag) | `python release.py 2.4.0` (add `--push` to upload). See RELEASING.md |
 | Sign out by hand (Command Prompt) | `del %APPDATA%\TAAS\token.json` |
 | Open the settings folder | `explorer %APPDATA%\TAAS` |
 

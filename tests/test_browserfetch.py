@@ -1,5 +1,6 @@
 """Tests for the browser fallback (Playwright is replaced by a fake; no browser is opened)."""
 
+import os  # inspect the browser helper environment
 import sys  # replace a library during one test
 import tempfile  # a temporary folder
 import types  # build a fake library
@@ -58,6 +59,7 @@ def fake_playwright(installed=("chrome",), status=200, goto_error=None, settle_e
         chromium = Chromium()
 
         def __enter__(self):
+            state["reset_environment"] = os.environ.get("PYINSTALLER_RESET_ENVIRONMENT")
             return self
 
         def __exit__(self, *a):
@@ -89,6 +91,16 @@ class BrowserFetchTests(unittest.TestCase):
     def test_visible_setting_opens_a_visible_window(self):
         _, state = self.run_fetch(visible=True)
         self.assertFalse(state["headless"])
+
+    def test_frozen_browser_children_get_reset_flag_and_parent_environment_is_restored(self):
+        modules, state = fake_playwright()
+        with mock.patch.dict(sys.modules, modules), \
+                mock.patch.object(browserfetch, "browser_is_visible", return_value=False), \
+                mock.patch.object(browserfetch.sys, "frozen", True, create=True), \
+                mock.patch.dict(os.environ, {"PYINSTALLER_RESET_ENVIRONMENT": "0"}):
+            browserfetch.fetch_html("https://a.com")
+            self.assertEqual(state["reset_environment"], "1")
+            self.assertEqual(os.environ["PYINSTALLER_RESET_ENVIRONMENT"], "0")
 
     def test_uses_edge_when_chrome_is_missing(self):
         _, state = self.run_fetch(installed=("msedge",))

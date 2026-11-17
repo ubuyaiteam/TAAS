@@ -4,6 +4,10 @@ Used only when a website refuses the normal reader (HTTP 401, 403 or 429). The b
 .env file next to the app has BROWSER_VISIBLE=1 (some websites let a visible window through but block a hidden one).
 """
 
+import os  # prepare a clean PyInstaller child-process launch
+import sys  # detect the frozen executable
+from contextlib import contextmanager  # scope child-process environment changes
+
 from dotenv import dotenv_values  # read the .env file
 
 from . import config  # where the .env file is
@@ -14,6 +18,23 @@ LOAD_TIMEOUT_MS = 30_000  # how long to wait for the page to open
 SETTLE_TIMEOUT_MS = 5_000  # extra wait for the page to finish loading its content
 BLOCKED_STATUSES = (401, 403, 429)
 KEY_VISIBLE = "BROWSER_VISIBLE"  # name used inside the .env file (1, true, yes or on = show the window)
+
+
+@contextmanager
+def _pyinstaller_child_environment():
+    if not getattr(sys, "frozen", False):
+        yield
+        return
+    variable = "PYINSTALLER_RESET_ENVIRONMENT"
+    previous = os.environ.get(variable)
+    os.environ[variable] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(variable, None)
+        else:
+            os.environ[variable] = previous
 
 
 # True when the .env file next to the app asks for a visible browser window
@@ -34,31 +55,32 @@ def fetch_html(url):
 
     visible = browser_is_visible()
     try:
-        with sync_playwright() as playwright:
-            browser = None
-            for channel in BROWSER_CHANNELS:
+        with _pyinstaller_child_environment():
+            with sync_playwright() as playwright:
+                browser = None
+                for channel in BROWSER_CHANNELS:
+                    try:
+                        browser = playwright.chromium.launch(channel=channel, headless=not visible)
+                        break
+                    except PlaywrightError:
+                        continue
+                if browser is None:
+                    raise PageReadError("Google Chrome or Microsoft Edge was not found on this computer.")
                 try:
-                    browser = playwright.chromium.launch(channel=channel, headless=not visible)
-                    break
-                except PlaywrightError:
-                    continue
-            if browser is None:
-                raise PageReadError("Google Chrome or Microsoft Edge was not found on this computer.")
-            try:
-                page = browser.new_page()
-                response = page.goto(url, wait_until="domcontentloaded", timeout=LOAD_TIMEOUT_MS)
-                status = response.status if response else 0
-                if status in BLOCKED_STATUSES:
-                    raise PageReadError(f"the website blocked the browser too (HTTP {status}).")
-                if status >= 400:
-                    raise PageReadError(f"the website gave an error in the browser (HTTP {status}).")
-                try:
-                    page.wait_for_load_state("networkidle", timeout=SETTLE_TIMEOUT_MS)
-                except PlaywrightTimeout:
-                    pass  # some pages never go quiet; read what has loaded
-                return page.content()
-            finally:
-                browser.close()
+                    page = browser.new_page()
+                    response = page.goto(url, wait_until="domcontentloaded", timeout=LOAD_TIMEOUT_MS)
+                    status = response.status if response else 0
+                    if status in BLOCKED_STATUSES:
+                        raise PageReadError(f"the website blocked the browser too (HTTP {status}).")
+                    if status >= 400:
+                        raise PageReadError(f"the website gave an error in the browser (HTTP {status}).")
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=SETTLE_TIMEOUT_MS)
+                    except PlaywrightTimeout:
+                        pass  # some pages never go quiet; read what has loaded
+                    return page.content()
+                finally:
+                    browser.close()
     except PageReadError:
         raise
     except PlaywrightTimeout:
