@@ -3,6 +3,7 @@
 from __future__ import annotations  # allow newer type hints
 
 import os  # system and file-permission tools
+import shutil  # copy the bundled Google client file on first run
 import sys  # tells us if we run as a packaged .exe
 from dataclasses import dataclass  # simple data classes
 from pathlib import Path  # file paths
@@ -56,6 +57,20 @@ def app_folder() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def copy_bundled_client_secret() -> Optional[Path]:
+    """Copy the bundled Google client file to the user's settings folder once."""
+    if not getattr(sys, "frozen", False):
+        return None
+    bundle = Path(getattr(sys, "_MEIPASS", app_folder())) / "client_secret.json"
+    if not bundle.is_file():
+        return None
+    destination = app_dir() / "client_secret.json"
+    if destination.exists():
+        return destination
+    shutil.copyfile(bundle, destination)
+    return destination
+
+
 # Path of the .env file
 def env_path() -> Path:
     return app_dir() / ".env"
@@ -90,7 +105,13 @@ class Settings:
         if saved.exists():
             return saved
         beside = app_folder() / "client_secret.json"  # 3. next to the app (ships with the .exe)
-        return beside if beside.exists() else saved  # if none exists, help messages show #2
+        if beside.exists():
+            return beside
+        if getattr(sys, "frozen", False):
+            bundled = Path(getattr(sys, "_MEIPASS", app_folder())) / "client_secret.json"
+            if bundled.exists():
+                return bundled
+        return saved  # if none exists, help messages show #2
 
 
 # Read a whole number from the settings

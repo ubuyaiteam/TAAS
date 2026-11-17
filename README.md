@@ -12,14 +12,14 @@ configured credentials; see TEST_CHECKLIST.md.
 
 ## Build TAAS.exe
 **Option A: on your Windows PC (Python 3.10+ and Inno Setup 6.3+).** Double-click `build_exe.bat`. It prepares
-a local environment, runs the tests, builds the app folder in `dist\TAAS`, refreshes `release\USER_GUIDE.md`,
-and creates a versioned installer in `installer_output`. The installer copies the project-root
-`client_secret.json` to `%APPDATA%\TAAS`.
+a local environment, runs the tests, builds `dist\TAAS.exe`, refreshes `release\USER_GUIDE.md`, and creates a
+versioned installer. The local executable embeds the project-root `client_secret.json` and copies it into
+`%APPDATA%\TAAS` the first time it runs. Anyone who receives this executable can extract the client file.
 
 **Option B: in the cloud, nothing to install.** Put this project in a PRIVATE GitHub repository, open the
 Actions tab, choose "Build TAAS.exe", click "Run workflow", and download the `TAAS-windows` artifact when it finishes.
-It contains the app folder and `USER_GUIDE.md`, but not `client_secret.json`. Do not commit that file; place it in
-`%APPDATA%\TAAS` or next to `TAAS.exe` after extracting the artifact.
+It contains `TAAS.exe` and `USER_GUIDE.md`, but not `client_secret.json`, so it cannot install that file automatically.
+Do not commit the client file; add it to `%APPDATA%\TAAS` before signing in when using this artifact.
 
 ## Commands
 | What | Command |
@@ -63,11 +63,12 @@ It contains the app folder and `USER_GUIDE.md`, but not `client_secret.json`. Do
     UPDATE_REPO=owner/name                (optional: overrides the repository in taas/updates.py)
     UPDATE_TOKEN=                         (optional: read-only token, only if the repository is private)
 The Google client file `client_secret.json` is looked for in this order: the path in GOOGLE_CLIENT_SECRET_FILE,
-the TAAS settings folder, then next to the app.
+the TAAS settings folder, next to the app, then inside a bundled executable.
 
 Cloudinary image uploads read `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`
 from `.env` next to the app (the project folder when running from source).
 
 ## What is kept on the computer
 .env (AI provider keys and settings), token.json (Google sign-in token, no password), post_log.json (time, blog and
-addresses of recent posts, no article text). No key is built into the .exe.
+addresses of recent posts, no article text). User API keys are not built into the .exe. A local build embeds
+`client_secret.json`; cloud builds do not.

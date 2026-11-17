@@ -7,7 +7,7 @@ set "PYINSTALLER=venv\Scripts\pyinstaller.exe"
 set "ISCC_PATH="
 
 if not exist "client_secret.json" (
-  echo Required installer input client_secret.json was not found.
+  echo Required build input client_secret.json was not found.
   goto :error
 )
 

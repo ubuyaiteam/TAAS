@@ -18,6 +18,7 @@ from pathlib import Path  # resolve the logo icon
 import customtkinter as ctk  # the screen toolkit
 from PIL import Image  # load the sidebar icon variants
 
+from .. import config  # user settings and bundled client-file setup
 from ..errors import TaasError  # our error types
 from ..inputs import MAX_KEYWORDS, MAX_URLS, MIN_KEYWORDS, MIN_URLS  # allowed input counts
 from ..workflow import Workflow, split_keywords  # all the steps behind the screens
@@ -94,6 +95,11 @@ class App(ctk.CTk):
 
     def __init__(self, workflow=None, auto_check=False):
         super().__init__()
+        client_file_error = None
+        try:
+            config.copy_bundled_client_secret()
+        except OSError as error:
+            client_file_error = error
         self.workflow = workflow or Workflow()
         self.title(f"{APP_TITLE}  (v{self.workflow.version})")
         self.geometry("1100x760")
@@ -136,6 +142,13 @@ class App(ctk.CTk):
         self.body.pack(fill="both", expand=True, padx=40, pady=(10, 26))
         self.screen = None
         self.show(SetupScreen if self.workflow.missing_setup() else InputScreen)
+        if client_file_error is not None:
+            self.show_info(
+                "Google client file setup",
+                "TAAS could not copy the bundled Google client file to its settings folder. "
+                "Google sign-in may require manual setup.\n\n"
+                f"{client_file_error}",
+            )
 
         # look for a new version quietly when the app starts (only when it is set up)
         if auto_check and self.workflow.update_check_ready():

@@ -24,7 +24,9 @@
    as a separate download. The installer puts the app in Program Files and keeps TAAS settings under `%APPDATA%\TAAS`.
 6. The public release does not include `client_secret.json`. Obtain that file from your administrator and put it
    at `%APPDATA%\TAAS\client_secret.json` before signing in with Google. Do not upload a client file or API keys
-   to a public release.
+   to a public release. Local builds embed the client file in the executable when present; anyone receiving that
+   executable can extract it. A public executable built this way will automatically copy the file to
+   `%APPDATA%\TAAS` on first run, but the file is still public and extractable.
 
 ## What users see
 - A running TAAS asks GitHub for the latest release when it starts, and when the user clicks **Check for updates**.

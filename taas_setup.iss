@@ -30,7 +30,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; --- Output & Compression ---
-OutputDir=installer_output
+OutputDir=release
 OutputBaseFilename=TAAS_Setup_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
@@ -52,9 +52,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\TAAS\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\TAAS.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "release\USER_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "client_secret.json"; DestDir: "{userappdata}\{#MyAppName}"; Flags: ignoreversion onlyifdoesntexist skipifsourcedoesntexist
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

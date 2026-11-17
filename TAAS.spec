@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_all
 
 datas = [
@@ -12,6 +14,9 @@ datas = [
     ('assets/sidebar_settings_light.png', 'assets'),
     ('assets/sidebar_settings_dark.png', 'assets'),
 ]
+if Path('client_secret.json').is_file():
+    datas.append(('client_secret.json', '.'))
+
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('customtkinter')
@@ -40,8 +45,9 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='TAAS',
     debug=False,
     bootloader_ignore_signals=False,
@@ -56,14 +62,4 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=['assets/taas-logo.ico'],
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name='TAAS',
 )

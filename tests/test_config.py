@@ -86,6 +86,39 @@ class ConfigTests(unittest.TestCase):
             (home / "client_secret.json").write_text("{}")  # the settings folder wins
             self.assertEqual(config.Settings().client_secret_path(), home / "client_secret.json")
 
+    def test_client_secret_is_found_in_frozen_bundle(self):
+        import os  # environment variables
+        from unittest import mock  # replace packaged-app paths
+        home, beside, bundle = (
+            Path(self.tmp.name) / name for name in ("home", "beside", "bundle")
+        )
+        beside.mkdir()
+        bundle.mkdir()
+        bundled_secret = bundle / "client_secret.json"
+        bundled_secret.write_text("{}")
+        with mock.patch.dict(os.environ, {"TAAS_HOME": str(home)}), \
+                mock.patch.object(config, "app_folder", lambda: beside), \
+                mock.patch.object(config.sys, "frozen", True, create=True), \
+                mock.patch.object(config.sys, "_MEIPASS", str(bundle), create=True):
+            self.assertEqual(config.Settings().client_secret_path(), bundled_secret)
+
+    def test_bundled_client_secret_is_copied_once_without_overwriting_user_file(self):
+        import os  # environment variables
+        from unittest import mock  # replace packaged-app paths
+        home, bundle = Path(self.tmp.name) / "home", Path(self.tmp.name) / "bundle"
+        bundle.mkdir()
+        bundled_secret = bundle / "client_secret.json"
+        bundled_secret.write_text("bundled", encoding="utf-8")
+        destination = home / "client_secret.json"
+        with mock.patch.dict(os.environ, {"TAAS_HOME": str(home)}), \
+                mock.patch.object(config.sys, "frozen", True, create=True), \
+                mock.patch.object(config.sys, "_MEIPASS", str(bundle), create=True):
+            self.assertEqual(config.copy_bundled_client_secret(), destination)
+            self.assertEqual(destination.read_text(encoding="utf-8"), "bundled")
+            destination.write_text("user", encoding="utf-8")
+            self.assertEqual(config.copy_bundled_client_secret(), destination)
+            self.assertEqual(destination.read_text(encoding="utf-8"), "user")
+
 
 if __name__ == "__main__":
     unittest.main()

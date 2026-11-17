@@ -88,6 +88,11 @@ class UiBase(tw.WorkflowBase):
 
 
 class SetupFlowTests(UiBase):
+    def test_app_startup_copies_bundled_client_file(self):
+        with mock.patch.object(ui.config, "copy_bundled_client_secret") as copy_client:
+            ui.App(self.wf)
+        copy_client.assert_called_once_with()
+
     def test_starts_on_setup_and_continues_after_sign_in(self):
         self.assertEqual(self.screen_name(), "SetupScreen")
         self.assertIn("Not signed in", " ".join(labels(self.app)))
