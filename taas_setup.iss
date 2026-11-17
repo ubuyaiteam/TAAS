@@ -5,7 +5,7 @@
 #define MyAppName "TAAS"
 #define MyAppFullName "TAAS - Tool for Automatic Article Submission"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.1.3"
+  #define MyAppVersion "2.2.0"
 #endif
 #define MyAppPublisher "Ubuy"
 #define MyAppExeName "TAAS.exe"

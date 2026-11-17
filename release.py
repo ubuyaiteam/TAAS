@@ -1,7 +1,7 @@
 """Make a new TAAS release.
 
-    python release.py 2.1.3          bump the version, test, commit and tag (nothing is uploaded)
-    python release.py 2.1.3 --push   the same, then upload the commit and the tag to GitHub
+    python release.py 2.2.0          bump the version, test, commit and tag (nothing is uploaded)
+    python release.py 2.2.0 --push   the same, then upload the commit and the tag to GitHub
 
 Pushing the tag starts the "Release TAAS" workflow on GitHub. It builds the .exe, packages it in an installer,
 and publishes the setup installer as a GitHub Release.

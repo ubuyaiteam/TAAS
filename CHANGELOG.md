@@ -2,6 +2,9 @@
 
 Newest first. The "Release TAAS.exe" workflow uses the GitHub release notes; this file is for people.
 
+## 2.2.0
+- The bundled Google client file is copied into the user's TAAS settings folder on first run.
+
 ## 2.1.3
 - Renamed the sidebar section from Markets to Marketplace.
 - When a website refuses the page reader (HTTP 401, 403 or 429), TAAS now retries once in a hidden Google Chrome or Microsoft Edge window (Playwright). If that also fails, the original message is shown with the reason. Add `BROWSER_VISIBLE=1` to the `.env` file next to the app to show the browser window instead of hiding it (some websites block hidden browsers).
