@@ -5,7 +5,7 @@
 #define MyAppName "TAAS"
 #define MyAppFullName "TAAS - Tool for Automatic Article Submission"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.3.0"
+  #define MyAppVersion "2.2.0"
 #endif
 #define MyAppPublisher "Ubuy"
 #define MyAppExeName "TAAS.exe"
@@ -30,7 +30,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; --- Output & Compression ---
-OutputDir=release
+OutputDir=installer_output
 OutputBaseFilename=TAAS_Setup_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
